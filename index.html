@@ -176,6 +176,11 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
 .pactions{display:grid;gap:.6rem}
 .pactions .btn{width:100%;font-size:1.2rem;padding:.9em}
 .pactions .two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.sync::before{content:"";display:inline-block;width:.6em;height:.6em;border-radius:50%;margin-right:.5em;background:var(--muted)}
+.sync[data-s="on"]::before{background:var(--ok)}
+.sync[data-s="bad"]::before{background:var(--danger)}
+#p-team{justify-self:start;background:var(--tc);color:var(--team-ink);border-color:transparent;font-size:1rem}
+.award button.suggest{outline:3px solid var(--accent);outline-offset:3px}
 [hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
@@ -244,12 +249,13 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
         <aside class="side">
           <div class="panel">
             <h2 class="h-sm">A palavra no celular do mímico</h2>
-            <p class="note">O mímico abre este link no próprio celular, sorteia e vê a palavra só para ele. O telão mostra tempo, modalidade e placar.</p>
+            <p class="note">O mímico escaneia o QR, sorteia e vê a palavra só para ele. O telão acompanha a modalidade, a categoria, o tempo e o resultado em tempo real.</p>
             <label for="phone-link" style="margin-top:.6rem">Endereço desta página</label>
             <input type="text" id="phone-link" placeholder="https://seu-site.github.io/jogos/">
             <div class="qrbox" id="phone-qr" hidden></div>
             <div class="code" id="phone-url" hidden></div>
             <div class="row"><button class="btn sm" id="phone-copy" hidden>Copiar link do celular</button></div>
+            <p class="note sync" id="sync-status" data-s="off">Sincronia desligada.</p>
             <p class="note" id="phone-msg">Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.</p>
           </div>
           <div class="panel">
@@ -319,6 +325,8 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <p class="eyebrow">Imagem e Ação</p>
     <h1 class="h-sm" style="font-size:2rem">Vez do mímico</h1>
     <p class="note">Só o mímico olha a tela.</p>
+    <p class="tag" id="p-team" hidden></p>
+    <p class="note sync" id="p-sync" data-s="off"></p>
   </div>
   <div class="chips" id="p-cats" aria-label="Categorias"></div>
   <div class="row"><span class="note">Tempo</span>
@@ -356,6 +364,11 @@ const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
+function newRoom(){
+  const a='abcdefghijklmnopqrstuvwxyz0123456789',b=new Uint8Array(8);
+  try{crypto.getRandomValues(b)}catch(e){for(let i=0;i<8;i++)b[i]=Math.floor(Math.random()*256)}
+  return Array.from(b,x=>a[x%36]).join('');
+}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KEY='madrugada-de-jogos-v1';
@@ -397,7 +410,7 @@ const CHALLENGES=[
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
   nid:5,turn:0,tab:'imagem',dur:60,mute:false,
-  phDur:300,challenges:CHALLENGES,usedCh:[],link:''
+  phDur:300,challenges:CHALLENGES,usedCh:[],link:'',room:''
 };
 function load(){
   const d=JSON.parse(JSON.stringify(DEF));
@@ -411,6 +424,7 @@ function load(){
       if(!(d.turn>=0&&d.turn<d.teams.length)) d.turn=0;
     }
   }catch(e){}
+  if(!/^[a-z0-9]{6,12}$/.test(String(d.room||'')))d.room=newRoom();
   return d;
 }
 let S=load();
@@ -555,9 +569,9 @@ function setTab(t,fromHash){
 }
 $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 function route(){
-  const h=(location.hash||'').slice(1),ph=h==='celular';
+  const h=(location.hash||'').slice(1),pm=/^celular(?:-([a-z0-9]{6,12}))?$/.exec(h),ph=!!pm;
   $('#host').hidden=ph;$('#phone').hidden=!ph;
-  if(ph)initPhone();else setTab(TABS.includes(h)?h:S.tab,true);
+  if(ph)initPhone(pm[1]||'');else setTab(TABS.includes(h)?h:S.tab,true);
 }
 window.addEventListener('hashchange',route);
 
@@ -591,7 +605,7 @@ function drawWord(catId){
 }
 
 /* ---------- IMAGEM E AÇÃO (computador) ---------- */
-const iea={mod:null,cat:null,phase:'idle',busy:false};
+const iea={mod:null,cat:null,phase:'idle',busy:false,lvl:0,hit:false};
 const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderIea()});
 (function(){
   const sel=$('#iea-catsel');
@@ -600,6 +614,7 @@ const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderI
 function renderIeaTeam(){
   const t=S.teams[S.turn]||S.teams[0];
   const h=$('#iea-team');h.textContent=t.name;h.style.setProperty('--tc',tcol(t));
+  sendTurn(false);
 }
 function renderIea(){
   const p=iea.phase;
@@ -607,9 +622,11 @@ function renderIea(){
   $('#iea-stop').hidden=p!=='running';
   $('#iea-roll').hidden=p==='running'||p==='done';
   $('#iea-award').hidden=p!=='done';
-  $('#iea-slot').textContent=p==='done'?'Tempo!':(iea.mod?iea.mod.name:'Sorteie');
-  $('#iea-hint').textContent=p==='done'?'Quem acertou?':(iea.mod?iea.mod.hint:'Sorteie a modalidade e a categoria, depois inicie o tempo.');
-  const c=$('#iea-cat');c.hidden=!iea.cat;c.textContent=iea.cat?iea.cat.name:'';
+  $('#iea-slot').textContent=p==='done'?(iea.hit?'Acertaram!':'Tempo!'):(iea.mod?iea.mod.name:'Sorteie');
+  $('#iea-hint').textContent=p==='done'?(iea.hit?'Toque nos pontos para a equipe.':'Quem acertou?'):(iea.mod?iea.mod.hint:'Sorteie a modalidade e a categoria, depois inicie o tempo.');
+  const c=$('#iea-cat');c.hidden=!iea.cat;
+  c.textContent=iea.cat?(iea.cat.name+(iea.lvl?'. Vale '+iea.lvl+(iea.lvl>1?' pontos':' ponto'):'')):'';
+  $$('#iea-award button[data-pts]').forEach(b=>b.classList.toggle('suggest',iea.hit&&+b.dataset.pts===iea.lvl));
   $$('#iea-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.dur)));
   renderIeaTeam();
 }
@@ -622,7 +639,7 @@ async function ieaRoll(){
     const slot=$('#iea-slot');
     for(let k=0;k<14;k++){slot.textContent=MODS[k%MODS.length].name;beep(300+k*25,.04,0,.05);await sleep(55+k*14)}
   }
-  iea.mod=fm;iea.cat=fc;iea.phase='idle';renderIea();iea.busy=false;
+  iea.mod=fm;iea.cat=fc;iea.lvl=0;iea.hit=false;iea.phase='idle';renderIea();iea.busy=false;
 }
 $('#iea-roll').addEventListener('click',ieaRoll);
 $('#iea-start').addEventListener('click',()=>{iea.phase='running';ieaT.start();renderIea()});
@@ -638,7 +655,7 @@ $('#iea-award').addEventListener('click',e=>{
   const n=+b.dataset.pts,t=S.teams[S.turn];
   if(n>0)addScore(t.id,n);
   nextTurn();
-  iea.phase='idle';iea.mod=null;iea.cat=null;
+  iea.phase='idle';iea.mod=null;iea.cat=null;iea.lvl=0;iea.hit=false;
   ieaT.set(S.dur);renderIea();
 });
 /* palavra no computador */
@@ -669,7 +686,7 @@ function buildPhoneQr(){
   const raw=$('#phone-link').value.trim();
   const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg');
   let ok=/^https:\/\/\S+$/.test(raw);
-  const full=ok?raw.split('#')[0]+'#celular':'';
+  const full=ok?raw.split('#')[0]+'#celular-'+S.room:'';
   qr.hidden=url.hidden=cp.hidden=!ok;
   if(!ok){msg.textContent=raw?'Cole um endereço que comece com https://':'Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.';return}
   const svg=qrSvg(full,2);
@@ -803,11 +820,68 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='ArrowLeft'){showI--;paintShow()}
 });
 
+/* ---------- SINCRONIA celular e telão (canal público ntfy.sh, sem cadastro) ---------- */
+const RELAY='https://ntfy.sh/';
+const ME=Math.random().toString(36).slice(2,10);
+function makeSync(room,onMsg,onStatus){
+  const topic='madrugada-jogos-'+room,seen=new Set();
+  try{
+    const es=new EventSource(RELAY+topic+'/sse');
+    es.onopen=()=>onStatus('on');
+    es.onerror=()=>onStatus('off');
+    es.onmessage=ev=>{
+      let d,m;
+      try{d=JSON.parse(ev.data)}catch(e){return}
+      if(!d||d.event!=='message'||seen.has(d.id))return;
+      seen.add(d.id);
+      try{m=JSON.parse(d.message)}catch(e){return}
+      if(m&&typeof m==='object'&&m.from!==ME)onMsg(m);
+    };
+  }catch(e){onStatus('off')}
+  return {send(m){try{fetch(RELAY+topic,{method:'POST',body:JSON.stringify(Object.assign({from:ME},m))}).catch(()=>{})}catch(e){}}};
+}
+function setSync(el,state,text){el.dataset.s=state;el.textContent=text}
+let HS=null,hostPhone=false,lastTurnSent='';
+function sendTurn(force){
+  if(!HS)return;
+  const t=S.teams[S.turn]||S.teams[0],key=t.name+'|'+t.c;
+  if(!force&&key===lastTurnSent)return;
+  lastTurnSent=key;HS.send({k:'turn',name:t.name,c:t.c});
+}
+function onPhoneMsg(m){
+  const lvl=(m.lvl>=1&&m.lvl<=3)?(m.lvl|0):0;
+  hostPhone=true;setSync($('#sync-status'),'on','Celular conectado.');
+  if(m.k==='hi'){sendTurn(true);return}
+  if(iea.phase==='done')return;
+  if(m.k==='draw'){
+    const mod=MODS.find(x=>x.name===m.mod),cat=CATS.find(x=>x.name===m.cat);
+    if(!mod||!cat)return;
+    iea.mod=mod;iea.cat=cat;iea.lvl=lvl;
+    if(iea.phase!=='running'){iea.hit=false;iea.phase='idle';ieaT.set(S.dur)}
+    renderIea();
+  }else if(m.k==='start'){
+    if(iea.phase==='running')return;
+    const s=Math.max(10,Math.min(300,Math.round(+m.secs)||S.dur));
+    ieaT.set(s);iea.hit=false;iea.phase='running';ieaT.start();renderIea();
+  }else if(m.k==='ok'){
+    ieaT.stop();iea.hit=true;if(lvl)iea.lvl=lvl;iea.phase='done';renderIea();
+  }
+}
+function startHostSync(){
+  const el=$('#sync-status');
+  setSync(el,'off','Conectando…');
+  HS=makeSync(S.room,onPhoneMsg,st=>{
+    if(st==='on')setSync(el,'on',hostPhone?'Celular conectado.':'Sala '+S.room+' pronta. Aguardando o celular do mímico.');
+    else setSync(el,'bad','Sem conexão com o serviço de sincronia. Confira a internet.');
+  });
+}
+document.addEventListener('pointerdown',unlockAudio,{once:true});
+
 /* ---------- CELULAR DO MÍMICO (#celular) ---------- */
 let pInit=false;
-function initPhone(){
+function initPhone(room){
   if(pInit)return;pInit=true;
-  let ps='idle',cur=null,ok=0,pass=0,dur=60;
+  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{};
   const sel=new Set(CATS.map(c=>c.id));
   const chips=$('#p-cats');
   CATS.forEach(c=>{
@@ -828,6 +902,7 @@ function initPhone(){
   function draw(){
     const ids=Array.from(sel);
     cur=drawWord(pick(ids));cur.mod=pick(MODS);ps='hidden';render();
+    tx({k:'draw',mod:cur.mod.name,cat:cur.cat.name,lvl:cur.level});
   }
   function render(){
     $('#p-draw').hidden=ps!=='idle';
@@ -844,9 +919,25 @@ function initPhone(){
   }
   $('#p-draw').addEventListener('click',()=>{if(!T.running&&T.left<=0)T.set(dur);draw()});
   $('#p-reveal').addEventListener('click',()=>{ps='shown';render()});
-  $('#p-start').addEventListener('click',()=>{T.start();render()});
+  $('#p-start').addEventListener('click',()=>{const secs=Math.round(T.left/1000);T.start();tx({k:'start',secs});render()});
   $('#p-pass').addEventListener('click',()=>{pass++;draw()});
-  $('#p-ok').addEventListener('click',()=>{ok++;T.stop();ps='idle';T.set(dur);$('#p-mod').textContent=' ';render()});
+  $('#p-ok').addEventListener('click',()=>{tx({k:'ok',lvl:cur?cur.level:0});ok++;T.stop();ps='idle';T.set(dur);$('#p-mod').textContent=' ';render()});
+  const sEl=$('#p-sync');
+  if(room){
+    let seenTurn=false;
+    const sy=makeSync(room,m=>{
+      if(m&&m.k==='turn'&&typeof m.name==='string'){
+        seenTurn=true;
+        const tg=$('#p-team');tg.hidden=false;tg.textContent='Vez da equipe '+m.name.slice(0,22);
+        tg.style.setProperty('--tc','var('+COLORS[(m.c>=0&&m.c<=5)?(m.c|0):0]+')');
+        setSync(sEl,'on','Conectado ao telão.');
+      }
+    },st=>{
+      if(st==='on'){setSync(sEl,'on',seenTurn?'Conectado ao telão.':'Conectado. Procurando o telão…');sy.send({k:'hi'})}
+      else setSync(sEl,'bad','Sem conexão. Confira a internet do celular.');
+    });
+    tx=m=>sy.send(m);
+  }else setSync(sEl,'off','Sem telão: este celular funciona sozinho.');
   render();
 }
 
@@ -858,6 +949,7 @@ function initPhone(){
   S.link=$('#phone-link').value.trim();
   ieaT.set(S.dur);phT.set(S.phDur);
   renderBoard();renderIea();renderPh();renderPhotos();buildPhoneQr();
+  if(!/^#celular(-|$)/.test(location.hash))startHostSync();
   route();
 })();
 })();
