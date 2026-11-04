@@ -181,6 +181,12 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
 .sync[data-s="bad"]::before{background:var(--danger)}
 #p-team{justify-self:start;background:var(--tc);color:var(--team-ink);border-color:transparent;font-size:1rem}
 .award button.suggest{outline:3px solid var(--accent);outline-offset:3px}
+#phone-team{justify-self:start;background:var(--tc);color:var(--team-ink);border-color:transparent}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:.6rem}
+.qrgrid .qcell{background:var(--paper);color:var(--paper-ink);border-radius:6px;overflow:hidden}
+.qrgrid .qcell b{display:block;background:var(--tc);color:var(--team-ink);padding:.25rem .5rem;font:800 .95rem/1.1 var(--f-display);text-transform:uppercase}
+.qrgrid .qcell div{padding:.4rem}
+.qrgrid svg{display:block;width:100%;height:auto}
 [hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
@@ -249,12 +255,15 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
         <aside class="side">
           <div class="panel">
             <h2 class="h-sm">A palavra no celular do mímico</h2>
-            <p class="note">O mímico escaneia o QR, sorteia e vê a palavra só para ele. O telão acompanha a modalidade, a categoria, o tempo e o resultado em tempo real.</p>
+            <p class="note">Cada equipe tem o seu QR, e ele muda quando a vez muda. O mímico escaneia, sorteia e vê a palavra só para ele. O telão acompanha a modalidade, a categoria, o tempo e o resultado.</p>
             <label for="phone-link" style="margin-top:.6rem">Endereço desta página</label>
             <input type="text" id="phone-link" placeholder="https://seu-site.github.io/jogos/">
+            <span class="tag" id="phone-team" hidden></span>
             <div class="qrbox" id="phone-qr" hidden></div>
             <div class="code" id="phone-url" hidden></div>
             <div class="row"><button class="btn sm" id="phone-copy" hidden>Copiar link do celular</button></div>
+            <div class="row"><button class="btn sm" id="phone-all-btn" aria-pressed="false" hidden>Ver o QR de todas as equipes</button></div>
+            <div class="qrgrid" id="phone-all" hidden></div>
             <p class="note sync" id="sync-status" data-s="off">Sincronia desligada.</p>
             <p class="note" id="phone-msg">Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.</p>
           </div>
@@ -327,6 +336,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <p class="note">Só o mímico olha a tela.</p>
     <p class="tag" id="p-team" hidden></p>
     <p class="note sync" id="p-sync" data-s="off"></p>
+    <p class="note" id="p-wait" hidden></p>
   </div>
   <div class="chips" id="p-cats" aria-label="Categorias"></div>
   <div class="row"><span class="note">Tempo</span>
@@ -524,7 +534,7 @@ function renderBoard(){
 function addScore(id,d){const t=team(id);if(!t)return;t.score+=d;save();renderBoard()}
 function teamsChanged(){
   if(S.turn>=S.teams.length)S.turn=0;
-  save();renderBoard();renderPhotos();
+  save();renderBoard();renderPhotos();buildPhoneQr();
 }
 $('#teams').addEventListener('click',e=>{
   const b=e.target.closest('button[data-act]');if(!b)return;
@@ -543,7 +553,7 @@ $('#teams').addEventListener('change',e=>{
   if(!e.target.classList.contains('tname'))return;
   const t=team(e.target.closest('.team').dataset.id);if(!t)return;
   t.name=e.target.value.trim()||'Equipe';e.target.value=t.name;
-  save();renderIeaTeam();renderPhotos();
+  save();renderIeaTeam();renderPhotos();buildPhoneQr();
 });
 $('#team-add').addEventListener('click',()=>{
   if(S.teams.length>=6)return;
@@ -569,9 +579,9 @@ function setTab(t,fromHash){
 }
 $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 function route(){
-  const h=(location.hash||'').slice(1),pm=/^celular(?:-([a-z0-9]{6,12}))?$/.exec(h),ph=!!pm;
+  const h=(location.hash||'').slice(1),pm=/^celular(?:-([a-z0-9]{6,12})(?:-(t[0-9]{1,2}))?)?$/.exec(h),ph=!!pm;
   $('#host').hidden=ph;$('#phone').hidden=!ph;
-  if(ph)initPhone(pm[1]||'');else setTab(TABS.includes(h)?h:S.tab,true);
+  if(ph)initPhone(pm[1]||'',pm[2]||'');else setTab(TABS.includes(h)?h:S.tab,true);
 }
 window.addEventListener('hashchange',route);
 
@@ -611,9 +621,12 @@ const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderI
   const sel=$('#iea-catsel');
   sel.innerHTML='<option value="*">Categoria sorteada</option>'+CATS.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
 })();
+let qrKey='';
 function renderIeaTeam(){
   const t=S.teams[S.turn]||S.teams[0];
   const h=$('#iea-team');h.textContent=t.name;h.style.setProperty('--tc',tcol(t));
+  const k=t.id+'|'+t.name;
+  if(k!==qrKey){qrKey=k;buildPhoneQr()}
   sendTurn(false);
 }
 function renderIea(){
@@ -682,18 +695,44 @@ function qrSvg(text,margin){
     return q.createSvgTag({cellSize:4,margin:(margin==null?2:margin)*4,scalable:true});
   }catch(e){return null}
 }
+function phoneLink(t){
+  const raw=$('#phone-link').value.trim();
+  return /^https:\/\/\S+$/.test(raw)?raw.split('#')[0]+'#celular-'+S.room+'-'+t.id:'';
+}
 function buildPhoneQr(){
   const raw=$('#phone-link').value.trim();
-  const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg');
-  let ok=/^https:\/\/\S+$/.test(raw);
-  const full=ok?raw.split('#')[0]+'#celular-'+S.room:'';
-  qr.hidden=url.hidden=cp.hidden=!ok;
-  if(!ok){msg.textContent=raw?'Cole um endereço que comece com https://':'Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.';return}
+  const t=S.teams[S.turn]||S.teams[0];
+  const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg'),tg=$('#phone-team'),all=$('#phone-all-btn');
+  const full=phoneLink(t),ok=!!full;
+  qr.hidden=url.hidden=cp.hidden=tg.hidden=all.hidden=!ok;
+  if(!ok){
+    $('#phone-all').hidden=true;
+    msg.textContent=raw?'Cole um endereço que comece com https://':'Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.';
+    return;
+  }
+  tg.textContent='QR da equipe '+t.name;tg.style.setProperty('--tc',tcol(t));
   const svg=qrSvg(full,2);
   qr.innerHTML=svg||'';
   url.textContent=full;
-  msg.textContent=svg?'Aponte a câmera do celular para o QR. Se não abrir, confira a internet do celular.':'Não consegui gerar o QR. Copie o link abaixo.';
+  msg.textContent=svg?'Cada equipe usa o QR dela, e ele muda quando a vez muda. Se não abrir, confira a internet do celular.':'Não consegui gerar o QR. Copie o link abaixo.';
+  if(all.getAttribute('aria-pressed')==='true')renderAllQr();
 }
+function renderAllQr(){
+  const box=$('#phone-all');box.textContent='';
+  S.teams.forEach(t=>{
+    const full=phoneLink(t),svg=full?qrSvg(full,1):null;
+    const c=document.createElement('div');c.className='qcell';c.style.setProperty('--tc',tcol(t));
+    c.innerHTML='<b>'+esc(t.name)+'</b><div>'+(svg||'')+'</div>';
+    box.appendChild(c);
+  });
+}
+$('#phone-all-btn').addEventListener('click',e=>{
+  const b=e.currentTarget,on=b.getAttribute('aria-pressed')!=='true';
+  b.setAttribute('aria-pressed',String(on));
+  b.textContent=on?'Esconder os QR das equipes':'Ver o QR de todas as equipes';
+  $('#phone-all').hidden=!on;
+  if(on)renderAllQr();
+});
 $('#phone-link').addEventListener('input',e=>{S.link=e.target.value.trim();save();buildPhoneQr()});
 $('#phone-copy').addEventListener('click',()=>{
   const t=$('#phone-url').textContent;
@@ -844,14 +883,17 @@ function setSync(el,state,text){el.dataset.s=state;el.textContent=text}
 let HS=null,hostPhone=false,lastTurnSent='';
 function sendTurn(force){
   if(!HS)return;
-  const t=S.teams[S.turn]||S.teams[0],key=t.name+'|'+t.c;
+  const t=S.teams[S.turn]||S.teams[0],key=S.turn+'|'+S.teams.map(x=>x.id+':'+x.name+':'+x.c).join(',');
   if(!force&&key===lastTurnSent)return;
-  lastTurnSent=key;HS.send({k:'turn',name:t.name,c:t.c});
+  lastTurnSent=key;
+  HS.send({k:'turn',id:t.id,name:t.name,c:t.c,teams:S.teams.map(x=>({id:x.id,name:x.name,c:x.c}))});
 }
 function onPhoneMsg(m){
   const lvl=(m.lvl>=1&&m.lvl<=3)?(m.lvl|0):0;
   hostPhone=true;setSync($('#sync-status'),'on','Celular conectado.');
   if(m.k==='hi'){sendTurn(true);return}
+  const curT=S.teams[S.turn]||S.teams[0];
+  if(m.t&&m.t!==curT.id)return;
   if(iea.phase==='done')return;
   if(m.k==='draw'){
     const mod=MODS.find(x=>x.name===m.mod),cat=CATS.find(x=>x.name===m.cat);
@@ -879,9 +921,9 @@ document.addEventListener('pointerdown',unlockAudio,{once:true});
 
 /* ---------- CELULAR DO MÍMICO (#celular) ---------- */
 let pInit=false;
-function initPhone(room){
+function initPhone(room,myTeam){
   if(pInit)return;pInit=true;
-  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{};
+  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{},myTurn=null;
   const sel=new Set(CATS.map(c=>c.id));
   const chips=$('#p-cats');
   CATS.forEach(c=>{
@@ -916,6 +958,7 @@ function initPhone(room){
     if(ps==='shown'&&T.left>0)$('#p-mod').textContent=cur.mod.name+'. '+cur.mod.hint;
     else if(ps!=='shown'&&T.left>0)$('#p-mod').textContent=' ';
     $('#p-tally').textContent='Acertos '+ok+', passes '+pass;
+    $$('.pactions button').forEach(b=>{b.disabled=myTurn===false});
   }
   $('#p-draw').addEventListener('click',()=>{if(!T.running&&T.left<=0)T.set(dur);draw()});
   $('#p-reveal').addEventListener('click',()=>{ps='shown';render()});
@@ -924,19 +967,34 @@ function initPhone(room){
   $('#p-ok').addEventListener('click',()=>{tx({k:'ok',lvl:cur?cur.level:0});ok++;T.stop();ps='idle';T.set(dur);$('#p-mod').textContent=' ';render()});
   const sEl=$('#p-sync');
   if(room){
-    let seenTurn=false;
+    let seenTurn=false,roster={};
+    const col=c=>'var('+COLORS[(c>=0&&c<=5)?(c|0):0]+')';
+    const paintTeam=turn=>{
+      const tg=$('#p-team'),w=$('#p-wait');
+      if(myTeam){
+        const mine=roster[myTeam];
+        tg.hidden=false;tg.textContent='Equipe '+(mine?mine.name:'…');tg.style.setProperty('--tc',col(mine?mine.c:0));
+        myTurn=turn?turn.id===myTeam:null;
+        w.hidden=myTurn!==false;
+        if(myTurn===false)w.textContent='Agora é a vez da equipe '+turn.name+'. Aguarde a sua vez.';
+      }else if(turn){
+        tg.hidden=false;tg.textContent='Vez da equipe '+turn.name;tg.style.setProperty('--tc',col(turn.c));
+      }
+      render();
+    };
     const sy=makeSync(room,m=>{
-      if(m&&m.k==='turn'&&typeof m.name==='string'){
+      if(m&&m.k==='turn'&&typeof m.name==='string'&&typeof m.id==='string'){
         seenTurn=true;
-        const tg=$('#p-team');tg.hidden=false;tg.textContent='Vez da equipe '+m.name.slice(0,22);
-        tg.style.setProperty('--tc','var('+COLORS[(m.c>=0&&m.c<=5)?(m.c|0):0]+')');
+        roster={};
+        if(Array.isArray(m.teams))m.teams.slice(0,6).forEach(t=>{if(t&&typeof t.id==='string'&&typeof t.name==='string')roster[t.id.slice(0,4)]={name:t.name.slice(0,22),c:t.c}});
         setSync(sEl,'on','Conectado ao telão.');
+        paintTeam({id:m.id.slice(0,4),name:m.name.slice(0,22),c:m.c});
       }
     },st=>{
       if(st==='on'){setSync(sEl,'on',seenTurn?'Conectado ao telão.':'Conectado. Procurando o telão…');sy.send({k:'hi'})}
       else setSync(sEl,'bad','Sem conexão. Confira a internet do celular.');
     });
-    tx=m=>sy.send(m);
+    tx=m=>sy.send(Object.assign({t:myTeam||''},m));
   }else setSync(sEl,'off','Sem telão: este celular funciona sozinho.');
   render();
 }
