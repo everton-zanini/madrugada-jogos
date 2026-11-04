@@ -429,7 +429,9 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <p class="tag" id="f-team" hidden></p>
     <p class="note">Tire a foto do desafio e toque em enviar. Ela aparece no telão.</p>
   </div>
-  <button class="btn primary fbtn" id="f-pick">Tirar ou escolher foto</button>
+  <button class="btn primary fbtn" id="f-cam">Tirar foto agora</button>
+  <button class="btn fbtn" id="f-pick">Escolher da galeria</button>
+  <input type="file" id="f-camfile" accept="image/*" capture="environment" hidden>
   <input type="file" id="f-file" accept="image/*" hidden>
   <img class="fprev" id="f-prev" alt="Prévia da foto" hidden>
   <button class="btn primary fbtn" id="f-send" disabled>Enviar para o telão</button>
@@ -1588,6 +1590,7 @@ function initFoto(room,myTeam){
     if(t&&typeof t.name==='string'){tg.textContent='Equipe '+t.name.slice(0,22);tg.style.setProperty('--tc',col(t.c))}
   },s=>{if(s==='on')sy.send({k:'hi'})});
   $('#f-pick').addEventListener('click',()=>file.click());
+  $('#f-cam').addEventListener('click',()=>$('#f-camfile').click());
   function shrink(f){
     return new Promise((res,rej)=>{
       const u=URL.createObjectURL(f),im=new Image();
@@ -1603,8 +1606,8 @@ function initFoto(room,myTeam){
       im.src=u;
     });
   }
-  file.addEventListener('change',async()=>{
-    const f=file.files&&file.files[0];file.value='';
+  async function onPick(inp){
+    const f=inp.files&&inp.files[0];inp.value='';
     if(!f)return;
     st.textContent='Preparando a foto…';send.disabled=true;
     try{
@@ -1613,7 +1616,9 @@ function initFoto(room,myTeam){
       url=URL.createObjectURL(blob);prev.src=url;prev.hidden=false;
       send.disabled=false;st.textContent='Confira a foto e toque em enviar.';
     }catch(e){blob=null;prev.hidden=true;st.textContent='Não consegui abrir essa foto. Tente tirar outra.'}
-  });
+  }
+  file.addEventListener('change',()=>onPick(file));
+  $('#f-camfile').addEventListener('change',()=>onPick($('#f-camfile')));
   send.addEventListener('click',async()=>{
     if(!blob||busy)return;
     busy=true;send.disabled=true;st.textContent='Enviando…';
