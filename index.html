@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Madrugada de Jogos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@600;700&display=swap">
+<style>
+/* Layout: console para projetor. Placar fixo na esquerda, palco do jogo na direita.
+   No celular o placar vira uma pilha no topo e a vista #celular vira a tela do mímico. */
+:root{
+  --bg:#0e1422; --surface:#151d30; --surface-2:#1e2942; --line:#2a3754;
+  --fg:#edf1f9; --muted:#9ba8c4;
+  --accent:#f2b441; --accent-ink:#1b1403; --accent-text:#f2b441;
+  --danger:#ff7d5e; --ok:#63d6a0;
+  --t1:#ef6a4c; --t2:#f2b441; --t3:#3fb8a6; --t4:#8b7bf0; --t5:#4fa3e8; --t6:#9acd4a;
+  --team-ink:#10151f; --paper:#ffffff; --paper-ink:#10151f;
+  --cine-bg:#05070d; --cine-fg:#f3f5fb;
+  --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --f-body:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#e8edf6; --surface:#ffffff; --surface-2:#e0e7f2; --line:#c3cde1;
+    --fg:#101828; --muted:#4a5977; --accent-text:#855300; --danger:#c23b1c; --ok:#17794f;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#e8edf6; --surface:#ffffff; --surface-2:#e0e7f2; --line:#c3cde1;
+  --fg:#101828; --muted:#4a5977; --accent-text:#855300; --danger:#c23b1c; --ok:#17794f;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{font-size:clamp(15px,.55vw + 12px,20px)}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font:400 1rem/1.5 var(--f-body);
+  padding-block:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+h1,h2,h3,p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.muted{color:var(--muted)}
+.eyebrow{font:700 .8rem/1.2 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.h-sm{font:800 1.2rem/1.1 var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+.note{font-size:.9rem;color:var(--muted)}
+.note.warn{color:var(--danger)}
+.row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.row.between{justify-content:space-between}
+
+/* barra superior */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.5rem 1.5rem;padding-block:1rem .25rem;border-bottom:1px solid var(--line)}
+.brand{font:900 clamp(1.7rem,3vw,2.6rem)/.95 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.brand small{display:block;font:700 .72rem/1.4 var(--f-body);letter-spacing:.16em;color:var(--muted)}
+.tabs{display:flex;flex-wrap:wrap;gap:.25rem}
+.tab{font:800 1.15rem/1 var(--f-display);text-transform:uppercase;letter-spacing:.06em;padding:.7em .9em;background:none;border:0;border-bottom:4px solid transparent;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tools{display:flex;flex-wrap:wrap;gap:.4rem;margin-left:auto;padding-bottom:.5rem}
+
+/* botões */
+.btn{font:700 1rem/1.2 var(--f-body);padding:.7em 1.1em;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.big{font-size:1.2rem;padding:.8em 1.4em}
+.btn.sm{font-size:.85rem;padding:.45em .8em}
+.btn.teamchip{background:var(--tc);color:var(--team-ink);border-color:transparent}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:var(--surface-2);border:0;border-right:1px solid var(--line);padding:.6em .9em;font-weight:700;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg .dot{display:inline-block;width:.7em;height:.7em;border-radius:50%;background:var(--tc);margin-right:.4em}
+input[type=text],select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:.55em .7em}
+select{width:auto;max-width:100%}
+textarea{resize:vertical;line-height:1.45}
+label{display:block;font-weight:700;font-size:.9rem;margin:.9rem 0 .3rem}
+
+/* estrutura */
+.layout{display:grid;grid-template-columns:minmax(15rem,21rem) minmax(0,1fr);gap:1.5rem;padding-block:1.25rem 2.5rem}
+.board{align-self:start;position:sticky;top:1rem;display:grid;gap:.75rem}
+#teams{display:grid;gap:.6rem}
+.board-actions{display:flex;flex-wrap:wrap;gap:.4rem}
+main{min-width:0;display:grid;gap:1.25rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.1rem;min-width:0}
+.panel > * + *{margin-top:.8rem}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .board{position:static}
+  #teams{grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))}
+}
+
+/* placar */
+.team{display:grid;grid-template-columns:4.3rem minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.team.turn{outline:3px solid var(--tc);outline-offset:2px}
+.score{display:grid;place-items:center;background:var(--tc);color:var(--team-ink);font:900 2.5rem/1 var(--f-display);font-variant-numeric:tabular-nums}
+.tmeta{padding:.55rem .7rem;display:grid;gap:.4rem;min-width:0}
+.tname{width:100%;font:700 1.1rem/1.2 var(--f-body);background:transparent;border:1px solid transparent;border-radius:6px;padding:.15em .35em;margin-left:-.35em}
+.tname:hover,.tname:focus{border-color:var(--line);background:var(--surface-2)}
+.tbtns{display:flex;flex-wrap:wrap;gap:.35rem}
+.mini{font:700 .8rem/1 var(--f-body);padding:.45em .7em;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);cursor:pointer}
+.mini[aria-pressed="true"]{background:var(--tc);color:var(--team-ink);border-color:transparent}
+.mini.ghost{background:none;color:var(--muted)}
+
+/* palco */
+.iea{display:grid;grid-template-columns:minmax(0,1fr) minmax(16rem,21rem);gap:1.25rem}
+@media (max-width:1150px){.iea{grid-template-columns:minmax(0,1fr)}}
+.stage{padding:clamp(1rem,2.5vw,2rem);border:1px solid var(--line);border-radius:16px;display:grid;gap:1rem;min-width:0;
+  background:radial-gradient(110% 70% at 50% -15%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 62%),var(--surface)}
+.stage-team{display:inline-block;justify-self:start;max-width:100%;overflow-wrap:anywhere;font:900 clamp(2.4rem,7vw,5.5rem)/.95 var(--f-display);text-transform:uppercase;background:var(--tc);color:var(--team-ink);padding:.04em .22em}
+.slot-row{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}
+.slot{font:900 clamp(2rem,6vw,4.4rem)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.tag{display:inline-block;padding:.3em .8em;border:1px solid var(--line);border-radius:999px;font:700 .85rem/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--surface-2)}
+.hint{font-size:1.1rem;color:var(--muted);min-height:1.6em}
+.clock{font:700 clamp(4rem,13vw,9.5rem)/1 var(--f-mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.clock.mid{font-size:clamp(3rem,8vw,6rem)}
+.clock.low,.clock.done{color:var(--danger)}
+@media (prefers-reduced-motion:no-preference){.clock.low{animation:pulse 1s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.55}}
+.bar{height:.7rem;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:var(--accent);border-radius:99px}
+.controls{gap:.7rem}
+.award{padding-top:.4rem;gap:.6rem}
+.award button{font:800 1.6rem/1 var(--f-display);padding:.5em .9em;border-radius:10px;border:0;background:var(--ok);color:#06241a;cursor:pointer}
+.award button[data-pts="0"]{font:700 1rem var(--f-body);background:var(--surface-2);color:var(--fg);border:1px solid var(--line)}
+.side{display:grid;gap:1rem;align-content:start;min-width:0}
+.qrbox{background:var(--paper);padding:.6rem;border-radius:8px;width:min(100%,13rem)}
+.qrbox svg,.qr svg{display:block;width:100%;height:auto}
+.code{font:600 .8rem/1.4 var(--f-mono);overflow-wrap:anywhere;background:var(--surface-2);padding:.5em .7em;border-radius:6px}
+.word{font:900 2rem/1.1 var(--f-display);text-transform:uppercase;padding:.6rem .8rem;background:var(--surface-2);border-radius:8px;min-height:3.2rem}
+.word.mask{filter:blur(12px);user-select:none}
+.word.mask.peek{filter:none}
+
+/* fotos */
+.challenge{font:800 clamp(1.8rem,4.6vw,3.4rem)/1.05 var(--f-display);text-transform:uppercase;max-width:28ch}
+details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:1.4rem;text-align:center;cursor:pointer;color:var(--muted)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--fg)}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:1rem}
+.ph{margin:0;background:var(--surface-2);border-radius:10px;overflow:hidden;display:grid;min-width:0}
+.phimg{position:relative;aspect-ratio:4/3;background:var(--bg)}
+.phimg img{width:100%;height:100%;object-fit:cover;display:block}
+.phband{position:absolute;left:0;bottom:0;padding:.25em .7em;background:var(--tc,var(--surface));color:var(--team-ink);font:800 1rem/1.1 var(--f-display);text-transform:uppercase}
+.phfail{display:grid;place-items:center;height:100%;padding:1rem;text-align:center;color:var(--muted);font-size:.85rem}
+.ph figcaption{padding:.7rem;display:grid;gap:.5rem}
+.ph select{width:100%}
+.pts{display:flex;gap:.3rem;align-items:center}
+.pts button{flex:1;padding:.5em 0;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:700;cursor:pointer}
+.pts button[aria-pressed="true"]{background:var(--ok);color:#06241a;border-color:transparent}
+.pts button:disabled{opacity:.4;cursor:not-allowed}
+
+/* projeção de fotos */
+#show{position:fixed;inset:0;z-index:50;background:var(--cine-bg);color:var(--cine-fg);display:grid;grid-template-rows:minmax(0,1fr) auto auto;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+#show img{width:100%;height:100%;object-fit:contain;min-height:0}
+.show-cap{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;padding:.8rem 1.2rem;font-size:1.3rem}
+.show-cap .tag{background:var(--tc);color:var(--team-ink);border-color:transparent;font-size:1.1rem}
+.show-ctl{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 1.2rem 1rem}
+.show-ctl .btn{background:#1a2236;color:var(--cine-fg);border-color:#33405f}
+
+/* celular do mímico */
+.phone{max-width:34rem;margin:0 auto;padding-block:1.25rem 2.5rem;display:grid;gap:1rem}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.chips button{padding:.45em .8em;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-weight:700;font-size:.85rem;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.pcard{min-height:13rem;display:grid;place-content:center;gap:.7rem;text-align:center;padding:1.2rem;border:1px solid var(--line);border-radius:16px;
+  background:radial-gradient(110% 70% at 50% -15%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 62%),var(--surface)}
+.pword{font:900 clamp(2.2rem,12vw,4.2rem)/1.02 var(--f-display);text-transform:uppercase;overflow-wrap:anywhere}
+.pword.small{font-size:1.4rem;font-family:var(--f-body);font-weight:700;color:var(--muted);text-transform:none}
+.pactions{display:grid;gap:.6rem}
+.pactions .btn{width:100%;font-size:1.2rem;padding:.9em}
+.pactions .two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+[hidden]{display:none!important}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+
+</head>
+<body>
+<div id="host">
+  <header class="top">
+    <div class="brand"><small>Acampamento na igreja</small>Madrugada de Jogos</div>
+    <nav class="tabs" role="tablist" aria-label="Jogos">
+      <button class="tab" role="tab" data-tab="imagem">Imagem e Ação</button>
+      <button class="tab" role="tab" data-tab="fotos">Fotos em Equipe</button>
+    </nav>
+    <div class="tools">
+      <button class="btn sm" id="btn-sound" aria-pressed="true">Som ligado</button>
+      <button class="btn sm" id="btn-theme">Alternar tema</button>
+      <button class="btn sm" id="btn-full">Tela cheia</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="board" aria-label="Placar">
+      <h2 class="h-sm">Placar</h2>
+      <div id="teams"></div>
+      <div class="board-actions">
+        <button class="btn sm" id="team-add">Adicionar equipe</button>
+        <button class="btn sm" id="score-reset">Zerar placar</button>
+      </div>
+    </aside>
+
+    <main>
+      <!-- IMAGEM E AÇÃO -->
+      <section id="tab-imagem" class="iea">
+        <div class="stage">
+          <p class="eyebrow">Vez da equipe</p>
+          <h1 id="iea-team" class="stage-team">Equipe</h1>
+          <div class="slot-row">
+            <div id="iea-slot" class="slot">Sorteie</div>
+            <span id="iea-cat" class="tag" hidden></span>
+          </div>
+          <p id="iea-hint" class="hint"></p>
+          <div class="clock" id="iea-clock">01:00</div>
+          <div class="bar"><i id="iea-bar"></i></div>
+          <div class="row controls">
+            <div class="seg" id="iea-dur" role="group" aria-label="Tempo da rodada">
+              <button data-s="30" aria-pressed="false">30 s</button>
+              <button data-s="60" aria-pressed="true">60 s</button>
+              <button data-s="90" aria-pressed="false">90 s</button>
+            </div>
+            <select id="iea-catsel" aria-label="Categoria"></select>
+          </div>
+          <div class="row controls">
+            <button id="iea-roll" class="btn big">Sortear modalidade</button>
+            <button id="iea-start" class="btn big primary">Iniciar tempo</button>
+            <button id="iea-stop" class="btn big" hidden>Parar</button>
+          </div>
+          <div id="iea-award" class="row award" hidden>
+            <span class="eyebrow">Acertaram?</span>
+            <button data-pts="1">+1</button>
+            <button data-pts="2">+2</button>
+            <button data-pts="3">+3</button>
+            <button data-pts="0">Ninguém acertou</button>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="panel">
+            <h2 class="h-sm">A palavra no celular do mímico</h2>
+            <p class="note">O mímico abre este link no próprio celular, sorteia e vê a palavra só para ele. O telão mostra tempo, modalidade e placar.</p>
+            <label for="phone-link" style="margin-top:.6rem">Endereço desta página</label>
+            <input type="text" id="phone-link" placeholder="https://seu-site.github.io/jogos/">
+            <div class="qrbox" id="phone-qr" hidden></div>
+            <div class="code" id="phone-url" hidden></div>
+            <div class="row"><button class="btn sm" id="phone-copy" hidden>Copiar link do celular</button></div>
+            <p class="note" id="phone-msg">Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.</p>
+          </div>
+          <div class="panel">
+            <h2 class="h-sm">Palavra aqui no computador</h2>
+            <p class="note">Use se a tela do computador não estiver no telão, ou para cochichar a palavra no ouvido do mímico.</p>
+            <div class="row"><button class="btn" id="iea-draw">Sortear palavra</button></div>
+            <div id="iea-word" class="word mask" aria-live="polite">Palavra</div>
+            <p class="note" id="iea-wordmeta"></p>
+            <button class="btn sm" id="iea-peek">Segure para espiar</button>
+          </div>
+        </aside>
+      </section>
+
+      <!-- FOTOS EM EQUIPE -->
+      <section id="tab-fotos" hidden>
+        <div class="stage">
+          <p class="eyebrow">Desafio de foto</p>
+          <h1 id="ph-text" class="challenge">Sorteie um desafio</h1>
+          <div class="clock mid" id="ph-clock">05:00</div>
+          <div class="bar"><i id="ph-bar"></i></div>
+          <div class="row controls">
+            <div class="seg" id="ph-dur" role="group" aria-label="Tempo do desafio">
+              <button data-s="180" aria-pressed="false">3 min</button>
+              <button data-s="300" aria-pressed="true">5 min</button>
+              <button data-s="600" aria-pressed="false">10 min</button>
+            </div>
+            <button class="btn big" id="ph-draw">Sortear desafio</button>
+            <button class="btn big primary" id="ph-start">Iniciar tempo</button>
+            <button class="btn big" id="ph-stop" hidden>Parar</button>
+          </div>
+          <details>
+            <summary>Editar a lista de desafios</summary>
+            <label for="ph-list">Um desafio por linha</label>
+            <textarea id="ph-list" rows="8"></textarea>
+          </details>
+        </div>
+        <div class="panel" style="margin-top:1.25rem">
+          <div class="row between">
+            <h2 class="h-sm">Mural de fotos</h2>
+            <button class="btn primary" id="ph-show" disabled>Projetar fotos</button>
+          </div>
+          <p class="note">Cada equipe manda a foto para o WhatsApp do organizador. Salve no computador e arraste para cá. As fotos ficam só nesta aba, então não recarregue a página.</p>
+          <div class="drop" id="ph-drop" tabindex="0" role="button">Arraste as fotos aqui ou clique para escolher</div>
+          <input type="file" id="ph-file" multiple accept="image/*" hidden>
+          <div id="ph-grid" class="photos"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- projeção das fotos -->
+<div id="show" hidden role="dialog" aria-label="Fotos das equipes">
+  <img id="show-img" alt="">
+  <div class="show-cap"><span class="tag" id="show-team"></span><span id="show-ch"></span><span id="show-pts"></span></div>
+  <div class="show-ctl">
+    <button class="btn" id="show-prev">Anterior</button>
+    <button class="btn" id="show-play" aria-pressed="false">Passar sozinho</button>
+    <button class="btn" id="show-next">Próxima</button>
+    <button class="btn" id="show-close">Fechar</button>
+  </div>
+</div>
+
+<!-- vista do celular do mímico (#celular) -->
+<div id="phone" class="phone" hidden>
+  <div>
+    <p class="eyebrow">Imagem e Ação</p>
+    <h1 class="h-sm" style="font-size:2rem">Vez do mímico</h1>
+    <p class="note">Só o mímico olha a tela.</p>
+  </div>
+  <div class="chips" id="p-cats" aria-label="Categorias"></div>
+  <div class="row"><span class="note">Tempo</span>
+    <div class="seg" id="p-dur" role="group" aria-label="Tempo">
+      <button data-s="30" aria-pressed="false">30 s</button>
+      <button data-s="60" aria-pressed="true">60 s</button>
+      <button data-s="90" aria-pressed="false">90 s</button>
+    </div>
+  </div>
+  <div class="pcard">
+    <p class="eyebrow" id="p-mod">&nbsp;</p>
+    <div class="pword small" id="p-word">Toque em Sortear palavra</div>
+    <p class="note" id="p-meta">&nbsp;</p>
+  </div>
+  <div class="clock mid" id="p-clock">01:00</div>
+  <div class="bar"><i id="p-bar"></i></div>
+  <div class="pactions">
+    <button class="btn primary" id="p-draw">Sortear palavra</button>
+    <button class="btn primary" id="p-reveal" hidden>Ver a palavra</button>
+    <button class="btn primary" id="p-start" hidden>Iniciar tempo</button>
+    <div class="two" id="p-two" hidden>
+      <button class="btn" id="p-pass">Passar</button>
+      <button class="btn" id="p-ok">Acertamos</button>
+    </div>
+  </div>
+  <p class="note" id="p-tally">Acertos 0, passes 0</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- utilidades ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const KEY='madrugada-de-jogos-v1';
+const COLORS=['--t1','--t2','--t3','--t4','--t5','--t6'];
+
+/* ---------- conteúdo ---------- */
+const MODS=[
+  {name:'Mímica',hint:'Só gestos. Nada de sons e nada de apontar para objetos.'},
+  {name:'Desenho',hint:'Desenhar sem letras e sem números. A equipe chuta em voz alta.'},
+  {name:'Descrição',hint:'Pode falar à vontade, menos a palavra (nem pedaços dela).'}
+];
+const P=s=>s.split(',').map(x=>{const i=x.lastIndexOf(':');return [x.slice(0,i).trim(),+x.slice(i+1)]});
+const CATS=[
+  {id:'pers',name:'Personagens bíblicos',w:P('Noé:1,Davi:1,Golias:1,Moisés:1,Jonas:1,Maria:1,Sansão:2,Daniel:2,Zaqueu:2,Ester:2,Pedro:2,Paulo:2,Lázaro:2,José do Egito:2,Rute:3,Neemias:3,Gideão:3,Eliseu:3')},
+  {id:'hist',name:'Histórias e cenas',w:P('Arca de Noé:1,Davi e Golias:1,Zaqueu na árvore:1,Nascimento de Jesus:1,Jonas e o grande peixe:2,Travessia do Mar Vermelho:2,Daniel na cova dos leões:2,Multiplicação dos pães:2,Jesus anda sobre as águas:2,Torre de Babel:2,Jesus acalma a tempestade:2,Queda dos muros de Jericó:3,Filho pródigo:3,Bom samaritano:3,Pedro nega Jesus:3')},
+  {id:'livr',name:'Livros da Bíblia',w:P('Gênesis:1,Salmos:1,Mateus:1,João:1,Êxodo:2,Provérbios:2,Atos:2,Apocalipse:2,Jó:2,Romanos:3,Eclesiastes:3,Cantares:3,Filipenses:3,Tiago:3,Lamentações:3')},
+  {id:'obj',name:'Objetos e lugares',w:P('Cruz:1,Manjedoura:1,Barco:1,Sandálias:1,Arca:1,Estrela de Belém:2,Monte Sinai:2,Rio Jordão:2,Cálice:2,Coroa de espinhos:2,Funda e pedras:2,Muralhas:2,Jardim do Getsêmani:3,Lâmpada de óleo:3,Poço de Jacó:3')},
+  {id:'acao',name:'Ações de quem segue Jesus',w:P('Orar:1,Adorar:1,Cantar louvores:1,Ler a Bíblia:1,Levantar as mãos:1,Servir:1,Pescar:1,Perdoar:2,Pregar:2,Batizar:2,Semear:2,Lavar os pés:2,Jejuar:3,Dar o dízimo:3,Consolar quem chora:3')},
+  {id:'galera',name:'Dia a dia da galera',w:P('Tirar selfie:1,Jogar videogame:1,Pedir pizza:1,Tocar violão:1,Espirrar:1,Dançar:1,Escovar os dentes:1,Dormir em pé:2,Ficar sem bateria:2,Perder o ônibus:2,Ficar sem internet:2,Cair da bicicleta:2,Fazer um bolo:2,Falar com a boca cheia:3,Esperar na fila do banheiro:3')}
+];
+const CHALLENGES=[
+ 'Recriem uma cena bíblica em até 5 minutos, sem rir',
+ 'Davi contra Golias: a equipe toda numa pose dramática',
+ 'Selfie coletiva com o objeto mais estranho que acharem na igreja',
+ 'Foto do rosto de quem está acordado há 20 horas',
+ 'Formem a Arca de Noé com o corpo (os animais também valem)',
+ 'Foto no ar: todos pulando ao mesmo tempo',
+ 'Capa de filme com título inventado pela equipe',
+ 'Torre humana de Babel, sem cair',
+ 'Um líder da igreja imitando um personagem bíblico, com a equipe junto',
+ 'Ato de serviço: arrumem algo na igreja e fotografem o antes e o depois',
+ 'Foto no escuro, só com a luz das lanternas dos celulares',
+ 'O grito de guerra da equipe, congelado na hora do grito',
+ 'Formem com o corpo a letra inicial do nome da equipe',
+ 'A equipe fingindo dormir em lugares impossíveis'
+].join('\n');
+
+/* ---------- estado ---------- */
+const DEF={
+  teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
+  nid:5,turn:0,tab:'imagem',dur:60,mute:false,
+  phDur:300,challenges:CHALLENGES,usedCh:[],link:''
+};
+function load(){
+  const d=JSON.parse(JSON.stringify(DEF));
+  try{
+    const o=JSON.parse(localStorage.getItem(KEY));
+    if(o&&typeof o==='object'){
+      Object.assign(d,o);
+      const ok=Array.isArray(d.teams)&&d.teams.length>=2&&d.teams.length<=6&&d.teams.every(t=>t&&typeof t.id==='string'&&typeof t.name==='string'&&Number.isFinite(t.score)&&t.c>=0&&t.c<=5);
+      if(!ok) d.teams=JSON.parse(JSON.stringify(DEF.teams));
+      if(!Array.isArray(d.usedCh)) d.usedCh=[];
+      if(!(d.turn>=0&&d.turn<d.teams.length)) d.turn=0;
+    }
+  }catch(e){}
+  return d;
+}
+let S=load();
+let saveT=0;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}},150)}
+const team=id=>S.teams.find(t=>t.id===id);
+const tcol=t=>'var('+COLORS[t.c]+')';
+
+/* ---------- som, tela acesa, timer ---------- */
+let AC=null;
+function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function beep(f,d,delay,v){
+  if(S.mute||!AC) return;
+  try{
+    const o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+(delay||0),vol=v||.15;
+    o.type='square';o.frequency.value=f;o.connect(g);g.connect(AC.destination);
+    g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    o.start(t0);o.stop(t0+d+.03);
+  }catch(e){}
+}
+let wl=null;
+async function wake(){
+  try{
+    if('wakeLock' in navigator&&!wl){
+      wl=await navigator.wakeLock.request('screen');
+      wl.addEventListener('release',()=>{wl=null});
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&wl===null&&timersRunning>0)wake()});
+let timersRunning=0;
+function makeTimer(clock,bar,onEnd){
+  let total=60,left=60000,end=0,iv=null,last=-1;
+  const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+  function paint(){
+    clock.textContent=fmt(left);
+    clock.classList.toggle('low',left>0&&left<=10000&&iv!==null);
+    clock.classList.toggle('done',left<=0);
+    bar.style.width=(total?Math.max(0,left)/(total*1000)*100:0)+'%';
+  }
+  function tick(){
+    left=end-Date.now();
+    const s=Math.ceil(left/1000);
+    if(s!==last){last=s;if(left>0&&s<=5)beep(740,.08)}
+    if(left<=0){
+      left=0;clearInterval(iv);iv=null;timersRunning--;paint();
+      beep(300,.5,0,.2);beep(300,.7,.6,.2);
+      try{navigator.vibrate&&navigator.vibrate([300,120,300])}catch(e){}
+      if(onEnd)onEnd();
+    }else paint();
+  }
+  const api={
+    set(sec){api.stop();total=sec;left=sec*1000;last=-1;paint()},
+    start(){
+      if(iv||left<=0)return;
+      unlockAudio();wake();
+      end=Date.now()+left;last=-1;timersRunning++;
+      iv=setInterval(tick,150);paint();
+    },
+    stop(){
+      if(iv){clearInterval(iv);iv=null;timersRunning--;left=Math.max(0,end-Date.now());paint()}
+    },
+    get running(){return iv!==null},
+    get left(){return left}
+  };
+  api.set(60);
+  return api;
+}
+function arm(b,label,fn){
+  if(b.dataset.armed==='1'){delete b.dataset.armed;fn();return}
+  const old=b.textContent;b.dataset.armed='1';b.textContent=label;
+  setTimeout(()=>{if(b.isConnected&&b.dataset.armed==='1'){delete b.dataset.armed;b.textContent=old}},3000);
+}
+
+/* ---------- placar ---------- */
+function renderBoard(){
+  const box=$('#teams');box.textContent='';
+  S.teams.forEach((t,i)=>{
+    const r=document.createElement('div');
+    r.className='team'+(i===S.turn?' turn':'');
+    r.style.setProperty('--tc',tcol(t));
+    r.dataset.id=t.id;
+    r.innerHTML='<div class="score" aria-label="Pontos">'+t.score+'</div>'+
+      '<div class="tmeta">'+
+      '<input class="tname" value="'+esc(t.name)+'" maxlength="22" aria-label="Nome da equipe '+(i+1)+'">'+
+      '<div class="tbtns">'+
+      '<button class="mini" data-act="sub">−1</button>'+
+      '<button class="mini" data-act="add">+1</button>'+
+      '<button class="mini" data-act="add5">+5</button>'+
+      '<button class="mini" data-act="turn" aria-pressed="'+(i===S.turn)+'">'+(i===S.turn?'Na vez':'Dar a vez')+'</button>'+
+      (S.teams.length>2?'<button class="mini ghost" data-act="rm">Remover</button>':'')+
+      '</div></div>';
+    box.appendChild(r);
+  });
+  renderIeaTeam();
+}
+function addScore(id,d){const t=team(id);if(!t)return;t.score+=d;save();renderBoard()}
+function teamsChanged(){
+  if(S.turn>=S.teams.length)S.turn=0;
+  save();renderBoard();renderPhotos();
+}
+$('#teams').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]');if(!b)return;
+  const id=b.closest('.team').dataset.id,act=b.dataset.act;
+  if(act==='add')addScore(id,1);
+  else if(act==='sub')addScore(id,-1);
+  else if(act==='add5')addScore(id,5);
+  else if(act==='turn'){S.turn=S.teams.findIndex(t=>t.id===id);save();renderBoard()}
+  else if(act==='rm')arm(b,'Confirmar?',()=>{
+    S.teams=S.teams.filter(t=>t.id!==id);
+    photos.forEach(p=>{if(p.team===id)p.team=''});
+    teamsChanged();
+  });
+});
+$('#teams').addEventListener('change',e=>{
+  if(!e.target.classList.contains('tname'))return;
+  const t=team(e.target.closest('.team').dataset.id);if(!t)return;
+  t.name=e.target.value.trim()||'Equipe';e.target.value=t.name;
+  save();renderIeaTeam();renderPhotos();
+});
+$('#team-add').addEventListener('click',()=>{
+  if(S.teams.length>=6)return;
+  const used=new Set(S.teams.map(t=>t.c));
+  let c=0;while(used.has(c))c++;
+  S.teams.push({id:'t'+(S.nid++),name:'Equipe '+(S.teams.length+1),score:0,c});
+  teamsChanged();
+});
+$('#score-reset').addEventListener('click',e=>arm(e.currentTarget,'Zerar mesmo?',()=>{
+  S.teams.forEach(t=>t.score=0);photos.forEach(p=>p.pts=0);
+  save();renderBoard();renderPhotos();
+}));
+function nextTurn(){S.turn=(S.turn+1)%S.teams.length;save();renderBoard()}
+
+/* ---------- abas e rotas ---------- */
+const TABS=['imagem','fotos'];
+function setTab(t,fromHash){
+  if(!TABS.includes(t))t='imagem';
+  S.tab=t;save();
+  $$('.tab').forEach(b=>{const on=b.dataset.tab===t;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1});
+  TABS.forEach(x=>{$('#tab-'+x).hidden=x!==t});
+  if(!fromHash){try{if(location.hash.slice(1)!==t)location.hash=t}catch(e){}}
+}
+$$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function route(){
+  const h=(location.hash||'').slice(1),ph=h==='celular';
+  $('#host').hidden=ph;$('#phone').hidden=!ph;
+  if(ph)initPhone();else setTab(TABS.includes(h)?h:S.tab,true);
+}
+window.addEventListener('hashchange',route);
+
+/* ---------- topo: som, tema, tela cheia ---------- */
+function paintSound(){const b=$('#btn-sound');b.setAttribute('aria-pressed',String(!S.mute));b.textContent=S.mute?'Som desligado':'Som ligado'}
+$('#btn-sound').addEventListener('click',()=>{S.mute=!S.mute;save();paintSound();unlockAudio();if(!S.mute)beep(660,.1)});
+(function(){let th=null;try{th=localStorage.getItem(KEY+'-tema')}catch(e){}if(th==='dark'||th==='light')document.documentElement.setAttribute('data-theme',th)})();
+$('#btn-theme').addEventListener('click',()=>{
+  const cur=document.documentElement.getAttribute('data-theme')||(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+  const nx=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',nx);
+  try{localStorage.setItem(KEY+'-tema',nx)}catch(e){}
+});
+if(!document.fullscreenEnabled)$('#btn-full').hidden=true;
+$('#btn-full').addEventListener('click',()=>{
+  try{
+    if(document.fullscreenElement)document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(()=>{});
+  }catch(e){}
+});
+
+/* ---------- palavras ---------- */
+const usedWords={};
+function drawWord(catId){
+  const c=(catId&&catId!=='*')?CATS.find(x=>x.id===catId):pick(CATS);
+  const u=(usedWords[c.id]=usedWords[c.id]||new Set());
+  let pool=c.w.filter(w=>!u.has(w[0]));
+  if(!pool.length){u.clear();pool=c.w.slice()}
+  const w=pick(pool);u.add(w[0]);
+  return {word:w[0],level:w[1],cat:c};
+}
+
+/* ---------- IMAGEM E AÇÃO (computador) ---------- */
+const iea={mod:null,cat:null,phase:'idle',busy:false};
+const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderIea()});
+(function(){
+  const sel=$('#iea-catsel');
+  sel.innerHTML='<option value="*">Categoria sorteada</option>'+CATS.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+})();
+function renderIeaTeam(){
+  const t=S.teams[S.turn]||S.teams[0];
+  const h=$('#iea-team');h.textContent=t.name;h.style.setProperty('--tc',tcol(t));
+}
+function renderIea(){
+  const p=iea.phase;
+  $('#iea-start').hidden=p!=='idle';
+  $('#iea-stop').hidden=p!=='running';
+  $('#iea-roll').hidden=p==='running'||p==='done';
+  $('#iea-award').hidden=p!=='done';
+  $('#iea-slot').textContent=p==='done'?'Tempo!':(iea.mod?iea.mod.name:'Sorteie');
+  $('#iea-hint').textContent=p==='done'?'Quem acertou?':(iea.mod?iea.mod.hint:'Sorteie a modalidade e a categoria, depois inicie o tempo.');
+  const c=$('#iea-cat');c.hidden=!iea.cat;c.textContent=iea.cat?iea.cat.name:'';
+  $$('#iea-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.dur)));
+  renderIeaTeam();
+}
+async function ieaRoll(){
+  if(iea.busy)return;iea.busy=true;
+  unlockAudio();
+  const fm=pick(MODS),sel=$('#iea-catsel').value;
+  const fc=sel==='*'?pick(CATS):CATS.find(c=>c.id===sel);
+  if(!reduce){
+    const slot=$('#iea-slot');
+    for(let k=0;k<14;k++){slot.textContent=MODS[k%MODS.length].name;beep(300+k*25,.04,0,.05);await sleep(55+k*14)}
+  }
+  iea.mod=fm;iea.cat=fc;iea.phase='idle';renderIea();iea.busy=false;
+}
+$('#iea-roll').addEventListener('click',ieaRoll);
+$('#iea-start').addEventListener('click',()=>{iea.phase='running';ieaT.start();renderIea()});
+$('#iea-stop').addEventListener('click',()=>{ieaT.stop();iea.phase='done';renderIea()});
+$('#iea-dur').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-s]');if(!b)return;
+  S.dur=+b.dataset.s;save();
+  if(iea.phase==='idle')ieaT.set(S.dur);
+  renderIea();
+});
+$('#iea-award').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-pts]');if(!b)return;
+  const n=+b.dataset.pts,t=S.teams[S.turn];
+  if(n>0)addScore(t.id,n);
+  nextTurn();
+  iea.phase='idle';iea.mod=null;iea.cat=null;
+  ieaT.set(S.dur);renderIea();
+});
+/* palavra no computador */
+$('#iea-draw').addEventListener('click',()=>{
+  const w=drawWord(iea.cat?iea.cat.id:$('#iea-catsel').value);
+  $('#iea-word').textContent=w.word;
+  $('#iea-word').classList.remove('peek');
+  $('#iea-wordmeta').textContent=w.cat.name+'. Vale '+w.level+(w.level>1?' pontos.':' ponto.');
+});
+(function(){
+  const peek=$('#iea-peek'),w=$('#iea-word');
+  const on=()=>w.classList.add('peek'),off=()=>w.classList.remove('peek');
+  peek.addEventListener('pointerdown',on);
+  ['pointerup','pointerleave','pointercancel','blur'].forEach(ev=>peek.addEventListener(ev,off));
+  peek.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();on()}});
+  peek.addEventListener('keyup',off);
+})();
+/* QR do celular */
+function qrSvg(text,margin){
+  try{
+    if(typeof qrcode!=='function')return null;
+    qrcode.stringToBytes=qrcode.stringToBytesFuncs['UTF-8'];
+    const q=qrcode(0,'M');q.addData(text);q.make();
+    return q.createSvgTag({cellSize:4,margin:(margin==null?2:margin)*4,scalable:true});
+  }catch(e){return null}
+}
+function buildPhoneQr(){
+  const raw=$('#phone-link').value.trim();
+  const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg');
+  let ok=/^https:\/\/\S+$/.test(raw);
+  const full=ok?raw.split('#')[0]+'#celular':'';
+  qr.hidden=url.hidden=cp.hidden=!ok;
+  if(!ok){msg.textContent=raw?'Cole um endereço que comece com https://':'Abra a página pelo endereço publicado, ou cole o endereço acima, para gerar o QR.';return}
+  const svg=qrSvg(full,2);
+  qr.innerHTML=svg||'';
+  url.textContent=full;
+  msg.textContent=svg?'Aponte a câmera do celular para o QR. Se não abrir, confira a internet do celular.':'Não consegui gerar o QR. Copie o link abaixo.';
+}
+$('#phone-link').addEventListener('input',e=>{S.link=e.target.value.trim();save();buildPhoneQr()});
+$('#phone-copy').addEventListener('click',()=>{
+  const t=$('#phone-url').textContent;
+  const fb=()=>{const r=document.createRange();r.selectNodeContents($('#phone-url'));const s=getSelection();s.removeAllRanges();s.addRange(r)};
+  try{navigator.clipboard.writeText(t).then(()=>{$('#phone-copy').textContent='Copiado';setTimeout(()=>{$('#phone-copy').textContent='Copiar link do celular'},1500)},fb)}catch(e){fb()}
+});
+
+/* ---------- FOTOS EM EQUIPE ---------- */
+const photos=[];let pid=0,phCur=-1,showI=0,showTimer=0;
+const chList=()=>S.challenges.split('\n').map(s=>s.trim()).filter(Boolean);
+const phT=makeTimer($('#ph-clock'),$('#ph-bar'),()=>{renderPh()});
+$('#ph-list').value=S.challenges;
+function renderPh(){
+  const l=chList();
+  $('#ph-text').textContent=(phCur>=0&&l[phCur])?l[phCur]:'Sorteie um desafio';
+  $('#ph-start').hidden=phT.running||phT.left<=0;
+  $('#ph-stop').hidden=!phT.running;
+  $$('#ph-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.phDur)));
+}
+$('#ph-draw').addEventListener('click',()=>{
+  const l=chList();if(!l.length)return;
+  let pool=l.map((_,i)=>i).filter(i=>!S.usedCh.includes(i));
+  if(!pool.length){S.usedCh=[];pool=l.map((_,i)=>i)}
+  phCur=pick(pool);S.usedCh.push(phCur);save();
+  phT.set(S.phDur);renderPh();
+});
+$('#ph-start').addEventListener('click',()=>{phT.start();renderPh()});
+$('#ph-stop').addEventListener('click',()=>{phT.stop();renderPh()});
+$('#ph-dur').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-s]');if(!b)return;
+  S.phDur=+b.dataset.s;save();
+  if(!phT.running)phT.set(S.phDur);
+  renderPh();
+});
+$('#ph-list').addEventListener('input',e=>{S.challenges=e.target.value;S.usedCh=[];phCur=-1;save();renderPh();renderPhotos()});
+/* entrada de fotos */
+function addFiles(files){
+  Array.from(files).filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name)).forEach(f=>{
+    photos.push({id:++pid,url:URL.createObjectURL(f),name:f.name,team:'',ch:phCur,pts:0});
+  });
+  renderPhotos();
+}
+const drop=$('#ph-drop'),fileIn=$('#ph-file');
+drop.addEventListener('click',()=>fileIn.click());
+drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});
+fileIn.addEventListener('change',()=>{addFiles(fileIn.files);fileIn.value=''});
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer)addFiles(e.dataTransfer.files)});
+function teamOpts(sel){return '<option value="">Escolher equipe</option>'+S.teams.map(t=>'<option value="'+t.id+'"'+(t.id===sel?' selected':'')+'>'+esc(t.name)+'</option>').join('')}
+function chOpts(sel){return '<option value="-1">Sem desafio</option>'+chList().map((c,i)=>'<option value="'+i+'"'+(i===sel?' selected':'')+'>'+(i+1)+'. '+esc(c.length>44?c.slice(0,43)+'…':c)+'</option>').join('')}
+function renderPhotos(){
+  const g=$('#ph-grid');g.textContent='';
+  photos.forEach(p=>{
+    if(p.team&&!team(p.team))p.team='';
+    const t=team(p.team);
+    const f=document.createElement('figure');f.className='ph';f.dataset.id=p.id;
+    if(t)f.style.setProperty('--tc',tcol(t));
+    f.innerHTML='<div class="phimg"><img alt="Foto de '+esc(t?t.name:'equipe')+'" src="'+p.url+'">'+(t?'<span class="phband">'+esc(t.name)+'</span>':'')+'</div>'+
+      '<figcaption>'+
+      '<select data-f="team" aria-label="Equipe da foto">'+teamOpts(p.team)+'</select>'+
+      '<select data-f="ch" aria-label="Desafio da foto">'+chOpts(p.ch)+'</select>'+
+      '<div class="pts" role="group" aria-label="Pontos da foto">'+[0,1,2,3].map(n=>'<button data-p="'+n+'" aria-pressed="'+(p.pts===n)+'"'+(t?'':' disabled')+'>'+(n?'+'+n:'0')+'</button>').join('')+'</div>'+
+      '<button class="mini ghost" data-f="del">Remover foto</button>'+
+      '</figcaption>';
+    const img=$('img',f);
+    img.addEventListener('error',()=>{const d=document.createElement('div');d.className='phfail';d.textContent='Esse formato não abre aqui ('+p.name+'). Peça a foto em JPEG.';img.replaceWith(d)});
+    g.appendChild(f);
+  });
+  $('#ph-show').disabled=!photos.length;
+}
+$('#ph-grid').addEventListener('change',e=>{
+  const sel=e.target.closest('select[data-f]');if(!sel)return;
+  const p=photos.find(x=>x.id===+sel.closest('.ph').dataset.id);if(!p)return;
+  if(sel.dataset.f==='team'){
+    if(p.pts&&team(p.team))addScore(p.team,-p.pts);
+    p.team=sel.value;
+    if(p.pts&&team(p.team))addScore(p.team,p.pts);
+  }else p.ch=+sel.value;
+  renderPhotos();
+});
+$('#ph-grid').addEventListener('click',e=>{
+  const fig=e.target.closest('.ph');if(!fig)return;
+  const p=photos.find(x=>x.id===+fig.dataset.id);if(!p)return;
+  const pb=e.target.closest('button[data-p]');
+  if(pb&&!pb.disabled){
+    const n=+pb.dataset.p,d=n-p.pts;p.pts=n;
+    if(d&&team(p.team))addScore(p.team,d);
+    renderPhotos();return;
+  }
+  const del=e.target.closest('button[data-f="del"]');
+  if(del)arm(del,'Remover mesmo?',()=>{
+    if(p.pts&&team(p.team))addScore(p.team,-p.pts);
+    try{URL.revokeObjectURL(p.url)}catch(err){}
+    photos.splice(photos.indexOf(p),1);renderPhotos();
+  });
+});
+/* projeção */
+function paintShow(){
+  if(!photos.length){closeShow();return}
+  showI=(showI+photos.length)%photos.length;
+  const p=photos[showI],t=team(p.team),l=chList();
+  $('#show-img').src=p.url;
+  const tg=$('#show-team');tg.textContent=t?t.name:'Sem equipe';
+  if(t)tg.style.setProperty('--tc',tcol(t));else tg.style.removeProperty('--tc');
+  $('#show-ch').textContent=(p.ch>=0&&l[p.ch])?l[p.ch]:'';
+  $('#show-pts').textContent=p.pts?('+'+p.pts+' pontos'):'';
+}
+function openShow(){if(!photos.length)return;showI=0;$('#show').hidden=false;paintShow();$('#show-close').focus()}
+function closeShow(){$('#show').hidden=true;clearInterval(showTimer);showTimer=0;$('#show-play').setAttribute('aria-pressed','false');$('#show-play').textContent='Passar sozinho'}
+$('#ph-show').addEventListener('click',openShow);
+$('#show-close').addEventListener('click',closeShow);
+$('#show-next').addEventListener('click',()=>{showI++;paintShow()});
+$('#show-prev').addEventListener('click',()=>{showI--;paintShow()});
+$('#show-play').addEventListener('click',e=>{
+  const b=e.currentTarget;
+  if(showTimer){clearInterval(showTimer);showTimer=0;b.setAttribute('aria-pressed','false');b.textContent='Passar sozinho'}
+  else{showTimer=setInterval(()=>{showI++;paintShow()},7000);b.setAttribute('aria-pressed','true');b.textContent='Parar de passar'}
+});
+document.addEventListener('keydown',e=>{
+  if($('#show').hidden)return;
+  if(e.key==='Escape')closeShow();
+  else if(e.key==='ArrowRight'){showI++;paintShow()}
+  else if(e.key==='ArrowLeft'){showI--;paintShow()}
+});
+
+/* ---------- CELULAR DO MÍMICO (#celular) ---------- */
+let pInit=false;
+function initPhone(){
+  if(pInit)return;pInit=true;
+  let ps='idle',cur=null,ok=0,pass=0,dur=60;
+  const sel=new Set(CATS.map(c=>c.id));
+  const chips=$('#p-cats');
+  CATS.forEach(c=>{
+    const b=document.createElement('button');b.textContent=c.name;b.dataset.id=c.id;b.setAttribute('aria-pressed','true');chips.appendChild(b);
+  });
+  chips.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-id]');if(!b)return;
+    if(sel.has(b.dataset.id)){if(sel.size>1)sel.delete(b.dataset.id)}else sel.add(b.dataset.id);
+    $$('button',chips).forEach(x=>x.setAttribute('aria-pressed',String(sel.has(x.dataset.id))));
+  });
+  const T=makeTimer($('#p-clock'),$('#p-bar'),()=>{$('#p-mod').textContent='Tempo!';render()});
+  T.set(dur);
+  $('#p-dur').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-s]');if(!b)return;
+    dur=+b.dataset.s;if(!T.running)T.set(dur);
+    $$('#p-dur button').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.s===dur)));
+  });
+  function draw(){
+    const ids=Array.from(sel);
+    cur=drawWord(pick(ids));cur.mod=pick(MODS);ps='hidden';render();
+  }
+  function render(){
+    $('#p-draw').hidden=ps!=='idle';
+    $('#p-reveal').hidden=ps!=='hidden';
+    $('#p-start').hidden=!(ps==='shown'&&!T.running&&T.left>0&&T.left===dur*1000);
+    $('#p-two').hidden=ps==='idle'||ps==='hidden';
+    const w=$('#p-word');
+    if(ps==='idle'){w.className='pword small';w.textContent='Toque em Sortear palavra';$('#p-meta').textContent=' '}
+    else if(ps==='hidden'){w.className='pword small';w.textContent='Palavra sorteada. Só o mímico olha.';$('#p-meta').textContent=' '}
+    else{w.className='pword';w.textContent=cur.word;$('#p-meta').textContent=cur.cat.name+'. Vale '+cur.level+(cur.level>1?' pontos.':' ponto.')}
+    if(ps==='shown'&&T.left>0)$('#p-mod').textContent=cur.mod.name+'. '+cur.mod.hint;
+    else if(ps!=='shown'&&T.left>0)$('#p-mod').textContent=' ';
+    $('#p-tally').textContent='Acertos '+ok+', passes '+pass;
+  }
+  $('#p-draw').addEventListener('click',()=>{if(!T.running&&T.left<=0)T.set(dur);draw()});
+  $('#p-reveal').addEventListener('click',()=>{ps='shown';render()});
+  $('#p-start').addEventListener('click',()=>{T.start();render()});
+  $('#p-pass').addEventListener('click',()=>{pass++;draw()});
+  $('#p-ok').addEventListener('click',()=>{ok++;T.stop();ps='idle';T.set(dur);$('#p-mod').textContent=' ';render()});
+  render();
+}
+
+/* ---------- partida ---------- */
+(function init(){
+  paintSound();
+  $('#phone-link').value=S.link||'';
+  try{if(/^https?:$/.test(location.protocol))$('#phone-link').value=location.href.split('#')[0]}catch(e){}
+  S.link=$('#phone-link').value.trim();
+  ieaT.set(S.dur);phT.set(S.phDur);
+  renderBoard();renderIea();renderPh();renderPhotos();buildPhoneQr();
+  route();
+})();
+})();
+</script>
+</body>
+</html>
