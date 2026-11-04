@@ -118,6 +118,8 @@ main{min-width:0;display:grid;gap:1.25rem}
 .slot{font:900 clamp(2rem,6vw,4.4rem)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
 .tag{display:inline-block;padding:.3em .8em;border:1px solid var(--line);border-radius:999px;font:700 .85rem/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--surface-2)}
 .hint{font-size:1.1rem;color:var(--muted);min-height:1.6em}
+.fprev{width:100%;max-height:55vh;object-fit:contain;border-radius:10px;background:var(--surface-2)}
+.fbtn{display:block;width:100%;font-size:1.2rem;padding:.9em}
 .hints{display:grid;gap:.35rem;font-size:1.35rem;font-weight:600;min-height:1.6em}
 .hints .pts-now{font-size:1rem;color:var(--muted);font-weight:500}
 .clock{font:700 clamp(4rem,13vw,9.5rem)/1 var(--f-mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
@@ -310,7 +312,17 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
             <h2 class="h-sm">Mural de fotos</h2>
             <button class="btn primary" id="ph-show" disabled>Projetar fotos</button>
           </div>
-          <p class="note">Cada equipe manda a foto para o WhatsApp do organizador. Salve no computador e arraste para cá. As fotos ficam só nesta aba, então não recarregue a página.</p>
+          <p class="note">Cada equipe escaneia o QR dela no celular e envia a foto direto para cá. Também dá para arrastar fotos do computador.</p>
+          <p class="note sync" id="ph-sync" data-s="off">Recebimento de fotos desligado.</p>
+          <details id="ph-qrbox">
+            <summary>QR para enviar fotos (um por equipe)</summary>
+            <div class="qrgrid" id="ph-qrs"></div>
+            <p class="note" id="ph-qrmsg"></p>
+          </details>
+          <div class="row">
+            <button class="btn sm" id="ph-clear" disabled>Limpar fotos do desafio</button>
+            <span class="note" id="ph-msg"></span>
+          </div>
           <div class="drop" id="ph-drop" tabindex="0" role="button">Arraste as fotos aqui ou clique para escolher</div>
           <input type="file" id="ph-file" multiple accept="image/*" hidden>
           <div id="ph-grid" class="photos"></div>
@@ -330,6 +342,21 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <button class="btn" id="show-next">Próxima</button>
     <button class="btn" id="show-close">Fechar</button>
   </div>
+</div>
+
+<!-- vista do celular para enviar fotos (#foto) -->
+<div id="foto" class="phone" hidden>
+  <div>
+    <p class="eyebrow">Fotos em Equipe</p>
+    <h1 class="h-sm" style="font-size:2rem">Enviar foto</h1>
+    <p class="tag" id="f-team" hidden></p>
+    <p class="note">Tire a foto do desafio e toque em enviar. Ela aparece no telão.</p>
+  </div>
+  <button class="btn primary fbtn" id="f-pick">Tirar ou escolher foto</button>
+  <input type="file" id="f-file" accept="image/*" hidden>
+  <img class="fprev" id="f-prev" alt="Prévia da foto" hidden>
+  <button class="btn primary fbtn" id="f-send" disabled>Enviar para o telão</button>
+  <p class="note" id="f-status" role="status"></p>
 </div>
 
 <!-- vista do celular do mímico (#celular) -->
@@ -562,7 +589,7 @@ const CHALLENGES=[
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
   nid:5,turn:0,tab:'imagem',dur:120,ver:3,mute:false,
-  phDur:300,challenges:CHALLENGES,usedCh:[],link:'',room:''
+  phDur:300,challenges:CHALLENGES,usedCh:[],gone:[],link:'',room:''
 };
 function load(){
   const d=JSON.parse(JSON.stringify(DEF));
@@ -573,6 +600,7 @@ function load(){
       const ok=Array.isArray(d.teams)&&d.teams.length>=2&&d.teams.length<=6&&d.teams.every(t=>t&&typeof t.id==='string'&&typeof t.name==='string'&&Number.isFinite(t.score)&&t.c>=0&&t.c<=5);
       if(!ok) d.teams=JSON.parse(JSON.stringify(DEF.teams));
       if(!Array.isArray(d.usedCh)) d.usedCh=[];
+      if(!Array.isArray(d.gone)) d.gone=[];
       if(!(o.ver>=2))d.dur=120;
       if(o.ver!==3){
         const have=String(d.challenges||'').split('\n').map(x=>x.trim());
@@ -729,8 +757,10 @@ function setTab(t,fromHash){
 $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 function route(){
   const h=(location.hash||'').slice(1),pm=/^celular(?:-([a-z0-9]{6,12})(?:-(t[0-9]{1,2}))?)?$/.exec(h),ph=!!pm;
-  $('#host').hidden=ph;$('#phone').hidden=!ph;
-  if(ph)initPhone(pm[1]||'',pm[2]||'');else setTab(TABS.includes(h)?h:S.tab,true);
+  const fm=/^foto-([a-z0-9]{6,12})-(t[0-9]{1,2})$/.exec(h);
+  $('#host').hidden=ph||!!fm;$('#phone').hidden=!ph;$('#foto').hidden=!fm;
+  if(fm)initFoto(fm[1],fm[2]);
+  else if(ph)initPhone(pm[1]||'',pm[2]||'');else setTab(TABS.includes(h)?h:S.tab,true);
 }
 window.addEventListener('hashchange',route);
 
@@ -863,7 +893,23 @@ function phoneLink(t){
   const raw=$('#phone-link').value.trim();
   return /^https:\/\/\S+$/.test(raw)?raw.split('#')[0]+'#celular-'+S.room+'-'+t.id:'';
 }
+function fotoLink(t){
+  const raw=$('#phone-link').value.trim();
+  return /^https:\/\/\S+$/.test(raw)?raw.split('#')[0]+'#foto-'+S.room+'-'+t.id:'';
+}
+function renderFotoQrs(){
+  const box=$('#ph-qrs');box.textContent='';
+  let any=false;
+  S.teams.forEach(t=>{
+    const full=fotoLink(t),svg=full?qrSvg(full,1):null;if(svg)any=true;
+    const c=document.createElement('div');c.className='qcell';c.style.setProperty('--tc',tcol(t));
+    c.innerHTML='<b>'+esc(t.name)+'</b><div>'+(svg||'')+'</div>';
+    box.appendChild(c);
+  });
+  $('#ph-qrmsg').textContent=any?'Cada equipe escaneia só o QR dela.':'Abra a página pelo endereço publicado (https) para gerar os QR.';
+}
 function buildPhoneQr(){
+  renderFotoQrs();
   const raw=$('#phone-link').value.trim();
   const t=S.teams[S.turn]||S.teams[0];
   const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg'),tg=$('#phone-team'),all=$('#phone-all-btn');
@@ -967,6 +1013,7 @@ function renderPhotos(){
     g.appendChild(f);
   });
   $('#ph-show').disabled=!photos.length;
+  $('#ph-clear').disabled=!photos.length;
 }
 $('#ph-grid').addEventListener('change',e=>{
   const sel=e.target.closest('select[data-f]');if(!sel)return;
@@ -992,6 +1039,52 @@ $('#ph-grid').addEventListener('click',e=>{
     if(p.pts&&team(p.team))addScore(p.team,-p.pts);
     try{URL.revokeObjectURL(p.url)}catch(err){}
     photos.splice(photos.indexOf(p),1);renderPhotos();
+    forgetRemote([p]);
+  });
+});
+/* fotos enviadas pelo celular (ntfy, anexos) */
+const FOTO_TOPIC=()=>'madrugada-jogos-'+S.room+'-fotos';
+const seenPh=new Set();
+function startPhotoSub(){
+  const el=$('#ph-sync');
+  setSync(el,'off','Conectando para receber fotos…');
+  try{
+    const es=new EventSource(RELAY+FOTO_TOPIC()+'/sse?since=3h');
+    es.onopen=()=>setSync(el,'on','Pronto para receber fotos dos celulares.');
+    es.onerror=()=>setSync(el,'bad','Sem conexão para receber fotos. Confira a internet.');
+    es.onmessage=ev=>{
+      let d,m={};
+      try{d=JSON.parse(ev.data)}catch(e){return}
+      if(!d||d.event!=='message'||!d.attachment||seenPh.has(d.id))return;
+      seenPh.add(d.id);
+      const a=d.attachment;
+      if(!/^image\//.test(a.type||'')||typeof a.url!=='string'||a.url.indexOf(RELAY)!==0)return;
+      if(S.gone.includes(d.id))return;
+      try{m=JSON.parse(d.message)||{}}catch(e){}
+      const tid=(typeof m.t==='string'&&team(m.t))?m.t:'';
+      photos.push({id:++pid,url:a.url,name:String(a.name||'foto').slice(0,60),team:tid,ch:phCur,pts:0,mid:d.id});
+      renderPhotos();
+      if(!$('#show').hidden)paintShow();
+    };
+  }catch(e){setSync(el,'bad','Não consegui abrir o recebimento de fotos.')}
+}
+function forgetRemote(list){
+  const ids=list.filter(p=>p.mid).map(p=>p.mid);
+  ids.forEach(id=>{if(!S.gone.includes(id))S.gone.push(id)});
+  if(S.gone.length>300)S.gone=S.gone.slice(-300);
+  save();
+  return Promise.all(ids.map(id=>fetch(RELAY+FOTO_TOPIC()+'/'+id,{method:'DELETE'}).then(r=>r.ok).catch(()=>false)));
+}
+$('#ph-clear').addEventListener('click',e=>{
+  arm(e.currentTarget,'Apagar todas?',()=>{
+    const all=photos.slice();
+    all.forEach(p=>{try{URL.revokeObjectURL(p.url)}catch(err){}});
+    photos.length=0;renderPhotos();
+    const msg=$('#ph-msg');
+    forgetRemote(all).then(r=>{
+      const n=r.length,ok=r.filter(Boolean).length;
+      msg.textContent=!n?'Mural limpo.':(ok===n?'Mural limpo e '+ok+' foto(s) apagada(s) do serviço.':'Mural limpo. O serviço não confirmou '+(n-ok)+' apagamento(s); essas fotos somem sozinhas em até 3 horas.');
+    });
   });
 });
 /* projeção */
@@ -1196,6 +1289,60 @@ function initPhone(room,myTeam){
   render();
 }
 
+/* ---------- CELULAR: ENVIAR FOTO (#foto) ---------- */
+let fInit=false;
+function initFoto(room,myTeam){
+  if(fInit)return;fInit=true;
+  const st=$('#f-status'),send=$('#f-send'),prev=$('#f-prev'),file=$('#f-file');
+  let blob=null,busy=false,url='';
+  const tg=$('#f-team');tg.hidden=false;tg.textContent='Equipe '+myTeam.replace('t','')  ;
+  tg.textContent='Sua equipe';
+  const col=c=>'var('+COLORS[(c>=0&&c<=5)?(c|0):0]+')';
+  const sy=makeSync(room,m=>{
+    if(!m||m.k!=='state'||!Array.isArray(m.teams))return;
+    const t=m.teams.find(x=>x&&x.id===myTeam);
+    if(t&&typeof t.name==='string'){tg.textContent='Equipe '+t.name.slice(0,22);tg.style.setProperty('--tc',col(t.c))}
+  },s=>{if(s==='on')sy.send({k:'hi'})});
+  $('#f-pick').addEventListener('click',()=>file.click());
+  function shrink(f){
+    return new Promise((res,rej)=>{
+      const u=URL.createObjectURL(f),im=new Image();
+      im.onload=()=>{
+        try{
+          const M=1280,r=Math.min(1,M/Math.max(im.naturalWidth,im.naturalHeight));
+          const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*r));c.height=Math.max(1,Math.round(im.naturalHeight*r));
+          c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+          c.toBlob(b=>{URL.revokeObjectURL(u);b?res(b):rej(new Error('blob'))},'image/jpeg',0.8);
+        }catch(e){rej(e)}
+      };
+      im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'))};
+      im.src=u;
+    });
+  }
+  file.addEventListener('change',async()=>{
+    const f=file.files&&file.files[0];file.value='';
+    if(!f)return;
+    st.textContent='Preparando a foto…';send.disabled=true;
+    try{
+      blob=await shrink(f);
+      if(url)URL.revokeObjectURL(url);
+      url=URL.createObjectURL(blob);prev.src=url;prev.hidden=false;
+      send.disabled=false;st.textContent='Confira a foto e toque em enviar.';
+    }catch(e){blob=null;prev.hidden=true;st.textContent='Não consegui abrir essa foto. Tente tirar outra.'}
+  });
+  send.addEventListener('click',async()=>{
+    if(!blob||busy)return;
+    busy=true;send.disabled=true;st.textContent='Enviando…';
+    try{
+      const r=await fetch(RELAY+'madrugada-jogos-'+room+'-fotos',{method:'PUT',body:blob,headers:{'Filename':'foto.jpg','Content-Type':'image/jpeg','Message':JSON.stringify({from:ME,t:myTeam})}});
+      if(!r.ok)throw new Error(String(r.status));
+      st.textContent='Foto enviada! Olhe o telão. Pode mandar outra.';
+      blob=null;prev.hidden=true;
+    }catch(e){st.textContent='Não enviou. Confira a internet e toque em enviar de novo.';send.disabled=false}
+    busy=false;
+  });
+}
+
 /* ---------- partida ---------- */
 (function init(){
   paintSound();
@@ -1204,7 +1351,7 @@ function initPhone(room,myTeam){
   S.link=$('#phone-link').value.trim();
   ieaT.set(S.dur);phT.set(S.phDur);
   renderBoard();renderIea();renderPh();renderPhotos();buildPhoneQr();
-  if(!/^#celular(-|$)/.test(location.hash))startHostSync();
+  if(!/^#(celular|foto)(-|$)/.test(location.hash)){startHostSync();startPhotoSub()}
   route();
 })();
 })();
