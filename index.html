@@ -132,6 +132,8 @@ main{min-width:0;display:grid;gap:1.25rem}
 .sttable tfoot td{font-weight:800}
 .sfield{display:grid;gap:.25rem}
 .sfield input{font-size:1.2rem;padding:.7em;width:100%}
+.mini.apply{width:100%;font-weight:800;padding:.6em;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.mini.apply:disabled{background:var(--surface-2);color:var(--muted);cursor:default}
 .fprev{width:100%;max-height:55vh;object-fit:contain;border-radius:10px;background:var(--surface-2)}
 .fbtn{display:block;width:100%;font-size:1.2rem;padding:.9em}
 .hints{display:grid;gap:.35rem;font-size:1.35rem;font-weight:600;min-height:1.6em}
@@ -1098,7 +1100,8 @@ function renderPhotos(){
       '<figcaption>'+
       '<select data-f="team" aria-label="Equipe da foto">'+teamOpts(p.team)+'</select>'+
       '<select data-f="ch" aria-label="Desafio da foto">'+chOpts(p.ch)+'</select>'+
-      '<div class="pts" role="group" aria-label="Pontos da foto">'+[0,1,2,3].map(n=>'<button data-p="'+n+'" aria-pressed="'+(p.pts===n)+'"'+(t?'':' disabled')+'>'+(n?'+'+n:'0')+'</button>').join('')+'</div>'+
+      '<div class="pts" role="group" aria-label="Pontos da foto">'+[0,1,2,3].map(n=>'<button data-p="'+n+'" aria-pressed="'+((p.draft==null?p.pts:p.draft)===n)+'"'+(t?'':' disabled')+'>'+(n?'+'+n:'0')+'</button>').join('')+'</div>'+
+      (t?'<button class="mini apply" data-f="apply"'+((p.draft==null||p.draft===p.pts)?' disabled':'')+'>'+((p.draft==null||p.draft===p.pts)?(p.applied?'Aplicado: +'+p.pts+' para '+esc(t.name):'Escolha os pontos'):'Aplicar +'+p.draft+' para '+esc(t.name))+'</button>':'<span class="note">Escolha a equipe para pontuar.</span>')+
       '<button class="mini ghost" data-f="del">Remover foto</button>'+
       '</figcaption>';
     const img=$('img',f);
@@ -1122,8 +1125,11 @@ $('#ph-grid').addEventListener('click',e=>{
   const fig=e.target.closest('.ph');if(!fig)return;
   const p=photos.find(x=>x.id===+fig.dataset.id);if(!p)return;
   const pb=e.target.closest('button[data-p]');
-  if(pb&&!pb.disabled){
-    const n=+pb.dataset.p,d=n-p.pts;p.pts=n;
+  if(pb&&!pb.disabled){p.draft=+pb.dataset.p;renderPhotos();return}
+  const ap=e.target.closest('button[data-f="apply"]');
+  if(ap&&!ap.disabled){
+    const n=p.draft,d=n-p.pts;
+    p.pts=n;p.draft=null;p.applied=true;
     if(d&&team(p.team))addScore(p.team,d);
     renderPhotos();return;
   }
