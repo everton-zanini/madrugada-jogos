@@ -99,6 +99,8 @@ main{min-width:0;display:grid;gap:1.25rem}
 /* placar */
 .team{display:grid;grid-template-columns:4.3rem minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .team.turn{outline:3px solid var(--tc);outline-offset:2px}
+body:not([data-tab="imagem"]) .team.turn{outline:0}
+body:not([data-tab="imagem"]) .team [data-act="turn"]{display:none}
 .score{display:grid;place-items:center;background:var(--tc);color:var(--team-ink);font:900 2.5rem/1 var(--f-display);font-variant-numeric:tabular-nums}
 .tmeta{padding:.55rem .7rem;display:grid;gap:.4rem;min-width:0}
 .tname{width:100%;font:700 1.1rem/1.2 var(--f-body);background:transparent;border:1px solid transparent;border-radius:6px;padding:.15em .35em;margin-left:-.35em}
@@ -828,7 +830,7 @@ function nextTurn(){S.turn=(S.turn+1)%S.teams.length;save();renderBoard()}
 const TABS=['imagem','fotos','stop'];
 function setTab(t,fromHash){
   if(!TABS.includes(t))t='imagem';
-  S.tab=t;save();
+  S.tab=t;save();document.body.dataset.tab=t;
   $$('.tab').forEach(b=>{const on=b.dataset.tab===t;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1});
   TABS.forEach(x=>{$('#tab-'+x).hidden=x!==t});
   if(!fromHash){try{if(location.hash.slice(1)!==t)location.hash=t}catch(e){}}
