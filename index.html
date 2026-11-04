@@ -512,13 +512,56 @@ const CHALLENGES=[
  'Foto no escuro, só com a luz das lanternas dos celulares',
  'O grito de guerra da equipe, congelado na hora do grito',
  'Formem com o corpo a letra inicial do nome da equipe',
- 'A equipe fingindo dormir em lugares impossíveis'
+ 'A equipe fingindo dormir em lugares impossíveis',
+ 'Recriem a Última Ceia com o que tiver na cozinha',
+ 'Foto da equipe como a travessia do Mar Vermelho: metade de cada lado, um corredor no meio',
+ 'Torre humana de três andares, sem ninguém cair',
+ 'Estátua viva: a equipe congelada como uma cena do presépio',
+ 'Foto de todos com o mesmo olhar de sono, sem ninguém rir',
+ 'O pastor mais bravo possível: todos imitando o Bom Pastor com as ovelhas',
+ 'Recriem o Davi e o Golias, com um gigante feito de gente em pé nos ombros',
+ 'Foto de todos ao contrário: de cabeça para baixo, ou com a foto virada',
+ 'A pessoa mais alta e a mais baixa da equipe em pose de capa de revista',
+ 'Foto em câmera lenta: todos pulando, pegando o instante certo',
+ 'Todos os integrantes escondidos atrás de um único objeto, só com os olhos aparecendo',
+ 'Capa de álbum de louvor da equipe, com nome da banda e do álbum inventados',
+ 'Foto com um acessório improvisado na cabeça: cada um faz o seu com o que achar',
+ 'Recriem a cena do batismo de Jesus no Jordão com um balde e uma garrafa',
+ 'Foto de equipe formando um coração com os corpos, visto de cima',
+ 'Selfie com a pessoa mais sonolenta da madrugada, sem acordá-la de verdade',
+ 'Foto de equipe usando as roupas ao contrário',
+ 'Cada um mostra a cara de quando o pregador passa do horário',
+ 'Recriem uma pintura famosa de arte sacra, do jeito que conseguirem',
+ 'Paparazzi: foto de um líder em uma situação engraçada, mas com permissão',
+ 'Todos de mãos dadas em círculo, olhando para o teto, como em oração',
+ 'Foto da equipe com a maior pirâmide humana possível, com segurança',
+ 'Foto do café da madrugada mais criativa que a equipe conseguir montar',
+ 'Uma foto onde cada integrante faz um fruto do Espírito, e a equipe adivinha qual é',
+ 'Foto com um objeto da igreja usado de um jeito totalmente diferente',
+ 'Foto de equipe em fila, cada um mais abaixado que o anterior, como uma escada',
+ 'Façam uma foto de família: cada um é um papel (pai, mãe, filho, avó, cachorro)',
+ 'Imitem uma estátua de herói bíblico na praça, com pose épica',
+ 'Cenário de filme de ação, mas todos sonolentos e de pijama',
+ 'A equipe toda fingindo remar numa barca invisível no meio da tempestade',
+ 'Foto de todos com o dedo apontando para o céu ao mesmo tempo',
+ 'Foto com um cartaz escrito à mão com a palavra mais difícil que acharem na Bíblia',
+ 'Recriem a parábola do semeador: um semeando, outros como terra boa, espinhos e pedras',
+ 'Foto de equipe com um líder carregado nos braços, em triunfo',
+ 'Foto de todos fazendo cara de espanto ao mesmo tempo, como diante de um milagre',
+ 'Foto de equipe em câmera de segurança: vista de cima, em preto e branco, cada um fazendo algo suspeito',
+ 'Foto com a equipe sorrindo e o fundo totalmente bagunçado, como uma foto de aniversário',
+ 'Foto de todos ajudando alguém: levantar uma cadeira, carregar uma caixa, arrumar a sala',
+ 'Recriem o dilúvio: alguns de pé como animais, outros como a chuva, um como Noé',
+ 'Foto de todos cochilando em posições impossíveis, mas bem fotografados',
+ 'Foto com o grito de vitória da equipe, em câmera lenta',
+ 'Foto de equipe tentando fazer a letra inicial de cada nome juntos, formando uma palavra',
+ 'Cena de novela: cada um com uma emoção dramática diferente, e a câmera gira em volta'
 ].join('\n');
 
 /* ---------- estado ---------- */
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
-  nid:5,turn:0,tab:'imagem',dur:120,ver:2,mute:false,
+  nid:5,turn:0,tab:'imagem',dur:120,ver:3,mute:false,
   phDur:300,challenges:CHALLENGES,usedCh:[],link:'',room:''
 };
 function load(){
@@ -530,7 +573,13 @@ function load(){
       const ok=Array.isArray(d.teams)&&d.teams.length>=2&&d.teams.length<=6&&d.teams.every(t=>t&&typeof t.id==='string'&&typeof t.name==='string'&&Number.isFinite(t.score)&&t.c>=0&&t.c<=5);
       if(!ok) d.teams=JSON.parse(JSON.stringify(DEF.teams));
       if(!Array.isArray(d.usedCh)) d.usedCh=[];
-      if(o.ver!==2){d.dur=120;d.ver=2}
+      if(!(o.ver>=2))d.dur=120;
+      if(o.ver!==3){
+        const have=String(d.challenges||'').split('\n').map(x=>x.trim());
+        const add=CHALLENGES.split('\n').filter(x=>!have.includes(x));
+        d.challenges=(String(d.challenges||'').trim()+'\n'+add.join('\n')).trim();
+        d.usedCh=[];d.ver=3;
+      }
       if(!(d.turn>=0&&d.turn<d.teams.length)) d.turn=0;
     }
   }catch(e){}
