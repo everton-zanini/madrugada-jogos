@@ -326,7 +326,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
             <button id="st-apply" class="btn big primary" hidden>Aplicar pontos e encerrar</button>
           </div>
           <div id="st-review" hidden>
-            <p class="note">Toque numa resposta para validar ou invalidar. Verde vale 2, amarelo (repetida) vale 1, riscada vale 0.</p>
+            <p class="note">Toque numa resposta para validar ou invalidar (vale também depois de aplicar, e aí toque em Atualizar pontos). Só vale resposta que começa com a letra sorteada. Verde vale 2, amarelo (repetida) vale 1, riscada vale 0.</p>
             <div style="overflow-x:auto"><table class="sttable" id="st-table"></table></div>
           </div>
         </div>
@@ -1283,14 +1283,15 @@ function renderStop(){
   $('#st-draw').textContent=p==='done'?'Próxima rodada':'Sortear letra e temas';
   $('#st-go').hidden=p!=='ready';
   $('#st-halt').hidden=p!=='play';
-  $('#st-apply').hidden=p!=='locked';
+  $('#st-apply').hidden=!(p==='locked'||p==='done');
+  $('#st-apply').textContent=p==='done'?'Atualizar pontos':'Aplicar pontos';
   $$('#st-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.stopDur)));
   const by=team(ST.by);
   $('#st-info').textContent=({idle:'Sorteie a letra e os temas.',ready:'Letra e temas sorteados. Os celulares já mostram. Toque em Valendo! quando todos estiverem prontos.',play:'Valendo! A primeira equipe que enviar trava as outras.',locked:(by?'A equipe '+by.name+' parou! ':'Acabou o tempo! ')+'Confira as respostas e aplique os pontos.',done:'Rodada encerrada. Pontos aplicados no placar.'})[p];
   const rv=$('#st-review');rv.hidden=!(p==='locked'||p==='done');
   if(!rv.hidden){
     const {pts,cells}=stopScore();
-    let t='<thead><tr><th>Tema</th>'+S.teams.map(x=>'<th style="--tc:'+tcol(x)+'">'+esc(x.name)+'</th>').join('')+'</tr></thead><tbody>';
+    let t='<thead><tr><th>Letra '+esc(ST.letter)+'</th>'+S.teams.map(x=>'<th style="--tc:'+tcol(x)+'">'+esc(x.name)+'</th>').join('')+'</tr></thead><tbody>';
     ST.themes.forEach((th,i)=>{
       t+='<tr><th scope="row">'+esc(th)+'</th>'+S.teams.map(x=>{
         const c=cells[x.id+':'+i],got=Array.isArray(ST.ans[x.id]);
@@ -1298,7 +1299,7 @@ function renderStop(){
         return '<td data-k="'+x.id+':'+i+'" class="'+cls+'">'+(got?esc(c.a)||'—':'…')+'</td>';
       }).join('')+'</tr>';
     });
-    t+='</tbody><tfoot><tr><td>Pontos</td>'+S.teams.map(x=>'<td>'+(p==='done'?(ST.pts[x.id]||0):pts[x.id])+'</td>').join('')+'</tr></tfoot>';
+    t+='</tbody><tfoot><tr><td>Pontos desta rodada</td>'+S.teams.map(x=>'<td>'+pts[x.id]+(p==='done'&&(ST.pts[x.id]||0)!==pts[x.id]?' <small>(aplicado: '+(ST.pts[x.id]||0)+')</small>':'')+'</td>').join('')+'</tr></tfoot>';
     $('#st-table').innerHTML=t;
   }
 }
@@ -1333,14 +1334,18 @@ $('#st-draw').addEventListener('click',async()=>{
 });
 $('#st-go').addEventListener('click',()=>{ST.phase='play';stT.start();stopPub();renderStop();beep(660,.15)});
 $('#st-halt').addEventListener('click',()=>stopLock(''));
-$('#st-apply').addEventListener('click',()=>{
-  if(ST.phase!=='locked')return;
+$('#st-apply').addEventListener('click',e=>{
+  if(ST.phase!=='locked'&&ST.phase!=='done')return;
   const {pts}=stopScore();
-  S.teams.forEach(t=>{if(pts[t.id])addScore(t.id,pts[t.id])});
-  ST.pts=pts;ST.phase='done';stopPub();renderStop();
+  const doIt=()=>{
+    S.teams.forEach(t=>{const d=pts[t.id]-(ST.pts[t.id]||0);if(d)addScore(t.id,d)});
+    ST.pts=pts;ST.phase='done';stopPub();renderStop();
+  };
+  if(ST.phase==='locked'){const tot=S.teams.reduce((a,t)=>a+pts[t.id],0);arm(e.currentTarget,'Confirmar: '+tot+' ponto(s) no total',doIt)}
+  else doIt();
 });
 $('#st-table').addEventListener('click',e=>{
-  const td=e.target.closest('td[data-k]');if(!td||ST.phase!=='locked')return;
+  const td=e.target.closest('td[data-k]');if(!td||(ST.phase!=='locked'&&ST.phase!=='done'))return;
   ST.off[td.dataset.k]=!ST.off[td.dataset.k];renderStop();
 });
 $('#st-dur').addEventListener('click',e=>{
