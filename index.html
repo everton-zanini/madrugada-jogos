@@ -118,6 +118,8 @@ main{min-width:0;display:grid;gap:1.25rem}
 .slot{font:900 clamp(2rem,6vw,4.4rem)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
 .tag{display:inline-block;padding:.3em .8em;border:1px solid var(--line);border-radius:999px;font:700 .85rem/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--surface-2)}
 .hint{font-size:1.1rem;color:var(--muted);min-height:1.6em}
+.hints{display:grid;gap:.35rem;font-size:1.35rem;font-weight:600;min-height:1.6em}
+.hints .pts-now{font-size:1rem;color:var(--muted);font-weight:500}
 .clock{font:700 clamp(4rem,13vw,9.5rem)/1 var(--f-mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .clock.mid{font-size:clamp(3rem,8vw,6rem)}
 .clock.low,.clock.done{color:var(--danger)}
@@ -228,26 +230,28 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
             <span id="iea-cat" class="tag" hidden></span>
           </div>
           <p id="iea-hint" class="hint"></p>
-          <div class="clock" id="iea-clock">01:00</div>
+          <div id="iea-hints" class="hints" aria-live="polite"></div>
+          <div class="clock" id="iea-clock">02:00</div>
           <div class="bar"><i id="iea-bar"></i></div>
           <div class="row controls">
             <div class="seg" id="iea-dur" role="group" aria-label="Tempo da rodada">
-              <button data-s="30" aria-pressed="false">30 s</button>
-              <button data-s="60" aria-pressed="true">60 s</button>
-              <button data-s="90" aria-pressed="false">90 s</button>
+              <button data-s="90" aria-pressed="false">1:30</button>
+              <button data-s="120" aria-pressed="true">2 min</button>
+              <button data-s="180" aria-pressed="false">3 min</button>
             </div>
             <select id="iea-catsel" aria-label="Categoria"></select>
           </div>
           <div class="row controls">
-            <button id="iea-roll" class="btn big">Sortear modalidade</button>
+            <button id="iea-roll" class="btn big">Sortear categoria</button>
             <button id="iea-start" class="btn big primary">Iniciar tempo</button>
             <button id="iea-stop" class="btn big" hidden>Parar</button>
           </div>
           <div id="iea-award" class="row award" hidden>
             <span class="eyebrow">Acertaram?</span>
-            <button data-pts="1">+1</button>
-            <button data-pts="2">+2</button>
+            <button data-pts="5">+5</button>
+            <button data-pts="4">+4</button>
             <button data-pts="3">+3</button>
+            <button data-pts="2">+2</button>
             <button data-pts="0">Ninguém acertou</button>
           </div>
         </div>
@@ -270,7 +274,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
           <div class="panel">
             <h2 class="h-sm">Palavra aqui no computador</h2>
             <p class="note">Use se a tela do computador não estiver no telão, ou para cochichar a palavra no ouvido do mímico.</p>
-            <div class="row"><button class="btn" id="iea-draw">Sortear palavra</button></div>
+            <div class="row"><button class="btn" id="iea-draw">Sortear palavra</button> <button class="btn" id="iea-hintbtn">Liberar dica</button></div>
             <div id="iea-word" class="word mask" aria-live="polite">Palavra</div>
             <p class="note" id="iea-wordmeta"></p>
             <button class="btn sm" id="iea-peek">Segure para espiar</button>
@@ -341,9 +345,9 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
   <div class="chips" id="p-cats" aria-label="Categorias"></div>
   <div class="row"><span class="note">Tempo</span>
     <div class="seg" id="p-dur" role="group" aria-label="Tempo">
-      <button data-s="30" aria-pressed="false">30 s</button>
-      <button data-s="60" aria-pressed="true">60 s</button>
-      <button data-s="90" aria-pressed="false">90 s</button>
+      <button data-s="90" aria-pressed="false">1:30</button>
+      <button data-s="120" aria-pressed="true">2 min</button>
+      <button data-s="180" aria-pressed="false">3 min</button>
     </div>
   </div>
   <div class="pcard">
@@ -351,17 +355,19 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <div class="pword small" id="p-word">Toque em Sortear palavra</div>
     <p class="note" id="p-meta">&nbsp;</p>
   </div>
-  <div class="clock mid" id="p-clock">01:00</div>
+  <div class="clock mid" id="p-clock">02:00</div>
   <div class="bar"><i id="p-bar"></i></div>
   <div class="pactions">
     <button class="btn primary" id="p-draw">Sortear palavra</button>
     <button class="btn primary" id="p-reveal" hidden>Ver a palavra</button>
     <button class="btn primary" id="p-start" hidden>Iniciar tempo</button>
+    <button class="btn" id="p-hint" hidden>Liberar dica</button>
     <div class="two" id="p-two" hidden>
       <button class="btn" id="p-pass">Passar</button>
       <button class="btn" id="p-ok">Acertamos</button>
     </div>
   </div>
+  <p class="note" id="p-hints"></p>
   <p class="note" id="p-tally">Acertos 0, passes 0</p>
 </div>
 
@@ -386,18 +392,111 @@ const COLORS=['--t1','--t2','--t3','--t4','--t5','--t6'];
 
 /* ---------- conteúdo ---------- */
 const MODS=[
-  {name:'Mímica',hint:'Só gestos. Nada de sons e nada de apontar para objetos.'},
-  {name:'Desenho',hint:'Desenhar sem letras e sem números. A equipe chuta em voz alta.'},
-  {name:'Descrição',hint:'Pode falar à vontade, menos a palavra (nem pedaços dela).'}
+  {name:'Mímica',hint:'Só gestos. O mímico fica calado, sem sons e sem apontar para objetos.'}
 ];
-const P=s=>s.split(',').map(x=>{const i=x.lastIndexOf(':');return [x.slice(0,i).trim(),+x.slice(i+1)]});
+const MAX_HINTS=3,BASE_PTS=5;
+const PT=s=>s.split('\n').map(x=>{const p=x.split('|');return {w:p[0],h:p.slice(1,4)}});
 const CATS=[
-  {id:'pers',name:'Personagens bíblicos',w:P('Noé:1,Davi:1,Golias:1,Moisés:1,Jonas:1,Maria:1,Sansão:2,Daniel:2,Zaqueu:2,Ester:2,Pedro:2,Paulo:2,Lázaro:2,José do Egito:2,Rute:3,Neemias:3,Gideão:3,Eliseu:3')},
-  {id:'hist',name:'Histórias e cenas',w:P('Arca de Noé:1,Davi e Golias:1,Zaqueu na árvore:1,Nascimento de Jesus:1,Jonas e o grande peixe:2,Travessia do Mar Vermelho:2,Daniel na cova dos leões:2,Multiplicação dos pães:2,Jesus anda sobre as águas:2,Torre de Babel:2,Jesus acalma a tempestade:2,Queda dos muros de Jericó:3,Filho pródigo:3,Bom samaritano:3,Pedro nega Jesus:3')},
-  {id:'livr',name:'Livros da Bíblia',w:P('Gênesis:1,Salmos:1,Mateus:1,João:1,Êxodo:2,Provérbios:2,Atos:2,Apocalipse:2,Jó:2,Romanos:3,Eclesiastes:3,Cantares:3,Filipenses:3,Tiago:3,Lamentações:3')},
-  {id:'obj',name:'Objetos e lugares',w:P('Cruz:1,Manjedoura:1,Barco:1,Sandálias:1,Arca:1,Estrela de Belém:2,Monte Sinai:2,Rio Jordão:2,Cálice:2,Coroa de espinhos:2,Funda e pedras:2,Muralhas:2,Jardim do Getsêmani:3,Lâmpada de óleo:3,Poço de Jacó:3')},
-  {id:'acao',name:'Ações de quem segue Jesus',w:P('Orar:1,Adorar:1,Cantar louvores:1,Ler a Bíblia:1,Levantar as mãos:1,Servir:1,Pescar:1,Perdoar:2,Pregar:2,Batizar:2,Semear:2,Lavar os pés:2,Jejuar:3,Dar o dízimo:3,Consolar quem chora:3')},
-  {id:'galera',name:'Dia a dia da galera',w:P('Tirar selfie:1,Jogar videogame:1,Pedir pizza:1,Tocar violão:1,Espirrar:1,Dançar:1,Escovar os dentes:1,Dormir em pé:2,Ficar sem bateria:2,Perder o ônibus:2,Ficar sem internet:2,Cair da bicicleta:2,Fazer um bolo:2,Falar com a boca cheia:3,Esperar na fila do banheiro:3')}
+  {id:'acao',name:'Ações',w:PT(`Orar|Fazemos de olhos fechados|Cabeça baixa e mãos juntas, falando com Deus|Jesus ensinou o Pai Nosso
+Ajoelhar|Gesto de humildade|Os joelhos tocam o chão|Acontece na hora de orar ou pedir perdão
+Cantar louvores|Usa a voz|Acontece no culto, junto com a banda|Música para Deus
+Ler a Bíblia|Precisa de um livro|Virar páginas e acompanhar com os olhos|A Palavra de Deus escrita
+Pescar|Acontece perto da água|Pedro e André faziam isso de profissão|Segurar uma vara ou jogar a rede
+Semear|Trabalho do campo|Espalhar pequenas coisas na terra|Parábola do agricultor e do grão
+Lavar os pés|Jesus fez isso na última ceia|Ato de humildade feito com bacia e toalha|Jesus se ajoelhou diante dos discípulos para servi-los
+Levantar as mãos|Gesto comum durante o louvor|Os braços sobem em direção ao céu|Moisés fez isso e Israel venceu a batalha
+Abraçar|Gesto de carinho|Envolver alguém com os braços|O pai fez isso quando o filho voltou para casa
+Carregar a cruz|Cena da Sexta-feira Santa|Andar curvado com peso nas costas|Um madeiro enorme em formato de T
+Construir um barco|Trabalho com madeira|Martelar e serrar muito|Noé fez isso por ordem de Deus
+Tocar trombeta|Faz barulho com a boca|Soprar um instrumento de metal|Os muros de Jericó caíram ao som disso
+Chorar|Emoção forte|Lágrimas no rosto|Jesus fez isso diante do túmulo de Lázaro
+Pular de alegria|Quando algo muito bom acontece|O corpo todo para cima e para baixo|O paralítico curado fez isso no templo
+Dar esmola|Gesto de generosidade|Entregar algo a quem precisa|A viúva pobre colocou duas moedinhas na oferta
+Remar|Precisa de água e esforço|Movimento repetido com os braços para os lados|Os discípulos faziam isso quando veio a tempestade
+Pastorear ovelhas|Trabalho do campo|Cuidar de animais de lã|Davi fazia isso antes de ser rei
+Partir o pão|Alimento na mesa|Dividir em pedaços para todos|Jesus fez isso na última ceia e disse "tomem e comam"
+Acender uma vela|Precisa de fogo pequeno|Riscar algo e proteger a chama|Jesus disse que não se esconde a luz debaixo de uma vasilha
+Bater na porta|Alguém quer entrar|Mão fechada e som de toc-toc|"Peçam, busquem e ___", disse Jesus`)},
+  {id:'pers',name:'Personagens e cenas',w:PT(`Noé|Homem muito obediente|Construiu algo enorme de madeira|Levou animais de dois em dois
+Davi e Golias|Uma luta de um contra um|Um é bem pequeno e o outro um gigante|Uma funda e uma pedrinha
+Sansão|Famoso por uma força enorme|Tinha cabelo comprido e era segredo|Derrubou as colunas do templo
+Jonas e o grande peixe|Um profeta que fugiu de Deus|Ficou três dias dentro de um animal marinho|Foi para Nínive depois de ser cuspido na praia
+Zaqueu na árvore|Homem baixinho|Queria ver Jesus passando|Subiu num sicômoro
+Moisés abrindo o mar|Povo fugindo de um exército|Uma vara levantada e a água se divide|Faraó vinha atrás com seus carros de guerra
+Daniel na cova dos leões|Foi jogado num lugar perigoso por orar|Animais famintos de juba|O rei Dario não dormiu de preocupação
+Pedro andando sobre a água|Cena numa tempestade à noite|Um discípulo saiu do barco|Começou a afundar quando duvidou
+Bom samaritano|Parábola de Jesus|Um viajante é assaltado na estrada|Um estrangeiro cuida do ferido enquanto outros passam direto
+Filho pródigo|Parábola de Jesus|Gastou toda a herança|Cuidou de porcos e voltou para o pai
+Maria com o bebê|Cena de Natal|Uma mãe segura o recém-nascido|Está numa estrebaria em Belém
+Jesus abençoando as crianças|Cena cheia de pequeninos|Os discípulos tentaram impedir|"Deixem vir a mim"
+José e a túnica colorida|Irmãos com inveja|Um sonhador foi vendido|Acabou governador do Egito
+Gideão|Soldado escolhido por Deus|Poucos homens com luzes dentro de jarros|Trezentos homens venceram um exército enorme
+Abraão e Isaque|Pai e filho subindo um monte|Lenha nas costas do menino|Um carneiro preso no mato no final
+Torre de Babel|Gente construindo algo muito alto|Tijolos até o céu|Cada um passou a falar uma língua diferente
+Muralhas de Jericó|Cidade cercada|Povo dá voltas em silêncio|Gritam e tudo desmorona
+Última ceia|Mesa com treze pessoas|Jesus repartiu pão e vinho|Um dos discípulos o traiu naquela noite
+Jesus acalmando a tempestade|Cena num barco à noite|Ventos fortes e discípulos com medo|Ele ordenou: "Cala-te, aquieta-te"
+Lázaro saindo do túmulo|Um milagre|Alguém estava morto havia quatro dias|Jesus gritou "vem para fora"`)},
+  {id:'obj',name:'Objetos e lugares',w:PT(`Cruz|Símbolo do cristianismo|Duas peças de madeira cruzadas|Onde Jesus foi crucificado
+Barco|Flutua|Pedro e os discípulos usavam para pescar|Veículo para navegar no lago
+Arca da Aliança|Objeto sagrado do povo de Israel|Dentro estavam as tábuas da lei|Era carregada por sacerdotes com varas
+Manjedoura|Local simples|Onde se coloca comida de animais|Jesus nasceu deitado nela
+Coroa de espinhos|Colocaram na cabeça de Jesus|Era uma zombaria dos soldados|Tinha pontas que machucavam
+Harpa|Instrumento musical|Cordas dedilhadas|Davi tocava para acalmar o rei Saul
+Escada de Jacó|Jacó sonhou com ela|Anjos subiam e desciam|Ligava a terra ao céu
+Pão|Alimento básico|Jesus multiplicou para a multidão|Feito de farinha e vai ao forno
+Peixe|Vive na água|Dois deles e cinco pães alimentaram milhares|Símbolo dos primeiros cristãos
+Lâmpada de óleo|Dá luz|Dez virgens esperavam com ela|Precisava de combustível para continuar acesa
+Espada|Arma de metal afiada|Pedro cortou a orelha de um soldado com ela|Guerreiros carregam na cintura
+Rede de pesca|Feita de fios|Pedro e André jogavam na água|Veio cheia de peixes depois da ordem de Jesus
+Monte Sinai|Moisés subiu nele|Fumaça, trovões e a voz de Deus|Lá foram entregues os dez mandamentos
+Deserto|Lugar seco|Israel andou quarenta anos por ele|Jesus foi tentado lá
+Estrela de Belém|Brilha no céu|Os magos a seguiram|Anunciou o nascimento do Rei
+Cajado|Bastão de madeira|Usado por pastores|Moisés o transformou em serpente
+Poço de Jacó|Lugar de buscar água|Jesus conversou com uma mulher ali|Ela era samaritana
+Rio Jordão|Jesus foi batizado nele|Rio famoso de Israel|João Batista batizava ali
+Cálice|Taça|Simboliza o vinho da ceia|Jesus orou para afastar de si na noite no jardim
+Moedas|Dinheiro|Judas recebeu trinta delas|Foi o preço da traição`)},
+  {id:'anim',name:'Animais',w:PT(`Ovelha|Animal de lã|Jesus se chama o Bom Pastor delas|Faz um som parecido com "béé"
+Leão|Rei da selva|Tem juba|Daniel passou a noite com vários
+Pomba|Ave branca|Símbolo da paz|Voltou para Noé com um ramo de oliveira
+Baleia|Vive no oceano|É enorme|Engoliu um profeta fugitivo
+Serpente|Rasteja|Enganou Eva no jardim|Não tem pernas e faz "ssss"
+Camelo|Animal do deserto|Tem corcova|Mais fácil passar um deles pelo buraco de uma agulha
+Jumento|Animal de carga|Jesus entrou em Jerusalém montado em um|Tem orelhas grandes e faz "ia"
+Galo|Ave de fazenda|Canta de manhã|Cantou depois que Pedro negou Jesus
+Corvo|Ave preta|Alimentou o profeta Elias|Noé soltou um da arca
+Águia|Ave de rapina|Voa muito alto|"Subirão com asas como as" dela, diz Isaías
+Gafanhoto|Inseto que pula|Praga do Egito|João Batista comia com mel
+Cabrito|Filhote de animal de pasto|Dá "mé"|No julgamento final, ficam separados das ovelhas
+Cavalo|Veloz|Montaria de guerreiros|Os quatro do Apocalipse
+Urso|Animal peludo e grande|Davi enfrentou um para defender o rebanho|Hiberna no inverno
+Rã|Pula e coaxa|Uma praga do Egito|Vive no brejo e é verde`)},
+  {id:'galera',name:'Dia a dia da galera',w:PT(`Tirar selfie|Usa o celular|Segura o aparelho com o braço esticado|Sorriso para a câmera da frente
+Jogar videogame|Diversão eletrônica|Segura um controle|Aperta botões de olho na tela
+Pedir pizza|Fazemos quando a fome aperta|Falar ao telefone ou usar o app|Escolher sabor e esperar o motoboy
+Tocar violão|Instrumento de cordas|Uma mão no braço do instrumento, outra dedilha|Muito usado em acampamento
+Espirrar|Reação do corpo|O nariz coça e vem um som alto|"Atchim!"
+Dançar|Movimento ao som da música|Corpo inteiro se mexe no ritmo|Acontece em festas e baladas
+Escovar os dentes|Higiene|Acontece de manhã e à noite|Pasta e espuma na boca
+Dormir em pé|Cansaço extremo|Cabeça cai e levanta de susto|Acontece em ônibus lotado e em madrugada de acampamento
+Ficar sem bateria|Problema com o celular|A tela apaga de repente|Procurar carregador desesperado
+Perder o ônibus|Chegou atrasado|Correr atrás de algo que vai embora|O veículo parte e você fica no ponto
+Cair da bicicleta|Esporte sobre duas rodas|Perde o equilíbrio|Joelho ralado no chão
+Fazer bolo|Cozinha|Mistura ingredientes e leva ao forno|Final feliz com parabéns e vela
+Andar de skate|Esporte radical|Prancha com rodinhas|Manobras em pista
+Jogar futebol|O esporte mais popular do Brasil|Chuta uma bola|Gol!
+Tomar banho gelado|Água fria|Arrepio e grito|Acontece quando o chuveiro não esquenta
+Fazer pipoca|Lanche de cinema|Estoura sozinha no calor|Milho explodindo na panela
+Mandar áudio|Mensagem de celular|Segura o dedo e fala|Em vez de digitar
+Tomar sorvete|Gelado e doce|Segurar com a mão e lamber|Derrete rápido no calor
+Chutar o dedo no móvel|Acidente doméstico|Pulinhos de dor segurando o pé|Acontece no escuro ao ir ao banheiro
+Bocejar|Reação do corpo|Boca bem aberta e olhos fechando|Sinal de sono e tédio
+Assistir filme de terror|No cinema ou no sofá|Susto e mãos tampando os olhos|Gritinhos de medo
+Cortar cebola|Cozinha|Os olhos ardem|Lágrimas sem estar triste
+Jogar basquete|Esporte coletivo|Quicar uma bola laranja|Arremessar na cesta
+Passar protetor solar|Praia|Espalhar creme no corpo|Evita queimadura
+Andar de montanha-russa|Parque de diversões|Sobe devagar e despenca|Gritos e braços para o alto`)},
 ];
 const CHALLENGES=[
  'Recriem uma cena bíblica em até 5 minutos, sem rir',
@@ -419,7 +518,7 @@ const CHALLENGES=[
 /* ---------- estado ---------- */
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
-  nid:5,turn:0,tab:'imagem',dur:60,mute:false,
+  nid:5,turn:0,tab:'imagem',dur:120,ver:2,mute:false,
   phDur:300,challenges:CHALLENGES,usedCh:[],link:'',room:''
 };
 function load(){
@@ -431,6 +530,7 @@ function load(){
       const ok=Array.isArray(d.teams)&&d.teams.length>=2&&d.teams.length<=6&&d.teams.every(t=>t&&typeof t.id==='string'&&typeof t.name==='string'&&Number.isFinite(t.score)&&t.c>=0&&t.c<=5);
       if(!ok) d.teams=JSON.parse(JSON.stringify(DEF.teams));
       if(!Array.isArray(d.usedCh)) d.usedCh=[];
+      if(o.ver!==2){d.dur=120;d.ver=2}
       if(!(d.turn>=0&&d.turn<d.teams.length)) d.turn=0;
     }
   }catch(e){}
@@ -608,17 +708,19 @@ const usedWords={};
 function drawWord(catId){
   const c=(catId&&catId!=='*')?CATS.find(x=>x.id===catId):pick(CATS);
   const u=(usedWords[c.id]=usedWords[c.id]||new Set());
-  let pool=c.w.filter(w=>!u.has(w[0]));
+  let pool=c.w.filter(w=>!u.has(w.w));
   if(!pool.length){u.clear();pool=c.w.slice()}
-  const w=pick(pool);u.add(w[0]);
-  return {word:w[0],level:w[1],cat:c};
+  const w=pick(pool);u.add(w.w);
+  return {word:w.w,hints:w.h,cat:c};
 }
+const ptsFor=n=>BASE_PTS-Math.max(0,Math.min(MAX_HINTS,n|0));
 
 /* ---------- IMAGEM E AÇÃO (computador) ---------- */
-const iea={mod:null,cat:null,phase:'idle',busy:false,lvl:0,hit:false,rid:1};
+const iea={mod:null,cat:null,phase:'idle',busy:false,hints:0,htx:[],hit:false,rid:1};
+let pcW=null;
 const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderIea()});
 function resetRound(){
-  iea.rid++;iea.phase='idle';iea.mod=null;iea.cat=null;iea.lvl=0;iea.hit=false;
+  iea.rid++;iea.phase='idle';iea.mod=null;iea.cat=null;iea.hints=0;iea.htx=[];pcW=null;iea.hit=false;
   ieaT.set(S.dur);
 }
 (function(){
@@ -642,8 +744,11 @@ function renderIea(){
   $('#iea-slot').textContent=p==='done'?(iea.hit?'Acertaram!':'Tempo!'):(iea.mod?iea.mod.name:'Sorteie');
   $('#iea-hint').textContent=p==='done'?(iea.hit?'Toque nos pontos para a equipe.':'Quem acertou?'):(iea.mod?iea.mod.hint:'Sorteie a modalidade e a categoria, depois inicie o tempo.');
   const c=$('#iea-cat');c.hidden=!iea.cat;
-  c.textContent=iea.cat?(iea.cat.name+(iea.lvl?'. Vale '+iea.lvl+(iea.lvl>1?' pontos':' ponto'):'')):'';
-  $$('#iea-award button[data-pts]').forEach(b=>b.classList.toggle('suggest',iea.hit&&+b.dataset.pts===iea.lvl));
+  const pv=ptsFor(iea.hints);
+  c.textContent=iea.cat?(iea.cat.name+'. Vale '+pv+' pontos'):'';
+  const hb=$('#iea-hints');
+  hb.innerHTML=iea.htx.map((t,i)=>t?'<div>Dica '+(i+1)+': '+esc(t)+'</div>':'').join('')+(iea.cat&&iea.hints?'<div class="pts-now">Dicas usadas: '+iea.hints+' de '+MAX_HINTS+'</div>':'');
+  $$('#iea-award button[data-pts]').forEach(b=>b.classList.toggle('suggest',iea.hit&&+b.dataset.pts===ptsFor(iea.hints)));
   $$('#iea-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.dur)));
   renderIeaTeam();
 }
@@ -654,9 +759,9 @@ async function ieaRoll(){
   const fc=sel==='*'?pick(CATS):CATS.find(c=>c.id===sel);
   if(!reduce){
     const slot=$('#iea-slot');
-    for(let k=0;k<14;k++){slot.textContent=MODS[k%MODS.length].name;beep(300+k*25,.04,0,.05);await sleep(55+k*14)}
+    for(let k=0;k<14;k++){slot.textContent=CATS[k%CATS.length].name;beep(300+k*25,.04,0,.05);await sleep(55+k*14)}
   }
-  iea.mod=fm;iea.cat=fc;iea.lvl=0;iea.hit=false;iea.phase='idle';iea.rid++;renderIea();iea.busy=false;
+  iea.mod=fm;iea.cat=fc;iea.hints=0;iea.htx=[];pcW=null;iea.hit=false;iea.phase='idle';iea.rid++;renderIea();iea.busy=false;
 }
 $('#iea-roll').addEventListener('click',ieaRoll);
 $('#iea-start').addEventListener('click',()=>{iea.phase='running';ieaT.start();renderIea()});
@@ -676,9 +781,17 @@ $('#iea-award').addEventListener('click',e=>{
 /* palavra no computador */
 $('#iea-draw').addEventListener('click',()=>{
   const w=drawWord(iea.cat?iea.cat.id:$('#iea-catsel').value);
+  pcW=w;iea.hints=0;iea.htx=[];
   $('#iea-word').textContent=w.word;
   $('#iea-word').classList.remove('peek');
-  $('#iea-wordmeta').textContent=w.cat.name+'. Vale '+w.level+(w.level>1?' pontos.':' ponto.');
+  $('#iea-wordmeta').textContent=w.cat.name+'. Vale '+BASE_PTS+' pontos sem dicas.';
+  renderIea();
+});
+$('#iea-hintbtn').addEventListener('click',()=>{
+  if(!pcW||iea.hints>=MAX_HINTS||iea.phase==='done')return;
+  iea.hints++;iea.htx[iea.hints-1]=pcW.hints[iea.hints-1]||'';
+  $('#iea-wordmeta').textContent=pcW.cat.name+'. Vale '+ptsFor(iea.hints)+' pontos.';
+  renderIea();
 });
 (function(){
   const peek=$('#iea-peek'),w=$('#iea-word');
@@ -893,7 +1006,7 @@ function sendTurn(force){
   lastTurnSent=key;HS.send(st);
 }
 function onPhoneMsg(m){
-  const lvl=(m.lvl>=1&&m.lvl<=3)?(m.lvl|0):0;
+  const hn=(m.n>=0&&m.n<=MAX_HINTS)?(m.n|0):0;
   hostPhone=true;setSync($('#sync-status'),'on','Celular conectado.');
   if(m.k==='hi'){sendTurn(true);return}
   const curT=S.teams[S.turn]||S.teams[0];
@@ -902,7 +1015,7 @@ function onPhoneMsg(m){
   if(m.k==='draw'){
     const mod=MODS.find(x=>x.name===m.mod),cat=CATS.find(x=>x.name===m.cat);
     if(!mod||!cat)return;
-    iea.mod=mod;iea.cat=cat;iea.lvl=lvl;
+    iea.mod=mod;iea.cat=cat;iea.hints=0;iea.htx=[];
     if(iea.phase!=='running'){iea.hit=false;iea.phase='idle';ieaT.set(S.dur)}
     renderIea();
   }else if(m.k==='start'){
@@ -910,7 +1023,10 @@ function onPhoneMsg(m){
     const s=Math.max(10,Math.min(300,Math.round(+m.secs)||S.dur));
     ieaT.set(s);iea.hit=false;iea.phase='running';ieaT.start();renderIea();
   }else if(m.k==='ok'){
-    ieaT.stop();iea.hit=true;if(lvl)iea.lvl=lvl;iea.phase='done';renderIea();
+    ieaT.stop();iea.hit=true;if(hn>iea.hints)iea.hints=hn;iea.phase='done';renderIea();
+  }else if(m.k==='hint'){
+    if(!(m.n>=1&&m.n<=MAX_HINTS)||typeof m.text!=='string')return;
+    iea.hints=Math.max(iea.hints,m.n|0);iea.htx[(m.n|0)-1]=m.text.slice(0,200);renderIea();
   }
 }
 function startHostSync(){
@@ -927,7 +1043,7 @@ document.addEventListener('pointerdown',unlockAudio,{once:true});
 let pInit=false;
 function initPhone(room,myTeam){
   if(pInit)return;pInit=true;
-  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{},myTurn=null,rid=null,rMod='',rCat='';
+  let ps='idle',cur=null,ok=0,pass=0,hn=0,dur=120,tx=()=>{},myTurn=null,rid=null,rMod='',rCat='';
   const sel=new Set(CATS.map(c=>c.id));
   const chips=$('#p-cats');
   CATS.forEach(c=>{
@@ -949,10 +1065,10 @@ function initPhone(room,myTeam){
     const rc=rCat?CATS.find(c=>c.name===rCat):null;
     cur=drawWord(rc?rc.id:pick(Array.from(sel)));
     cur.mod=(rMod&&MODS.find(x=>x.name===rMod))||pick(MODS);
-    ps='hidden';render();
-    tx({k:'draw',mod:cur.mod.name,cat:cur.cat.name,lvl:cur.level});
+    hn=0;ps='hidden';render();
+    tx({k:'draw',mod:cur.mod.name,cat:cur.cat.name});
   }
-  function newRound(){T.stop();T.set(dur);ps='idle';cur=null;render()}
+  function newRound(){T.stop();T.set(dur);ps='idle';cur=null;hn=0;render()}
   function render(){
     $('#p-draw').hidden=ps!=='idle';
     $('#p-reveal').hidden=ps!=='hidden';
@@ -961,17 +1077,26 @@ function initPhone(room,myTeam){
     const w=$('#p-word');
     if(ps==='idle'){w.className='pword small';w.textContent='Toque em Sortear palavra';$('#p-meta').textContent=' '}
     else if(ps==='hidden'){w.className='pword small';w.textContent='Palavra sorteada. Só o mímico olha.';$('#p-meta').textContent=' '}
-    else{w.className='pword';w.textContent=cur.word;$('#p-meta').textContent=cur.cat.name+'. Vale '+cur.level+(cur.level>1?' pontos.':' ponto.')}
+    else{w.className='pword';w.textContent=cur.word;$('#p-meta').textContent=cur.cat.name+'. Vale '+ptsFor(hn)+' pontos.'}
+    const hb=$('#p-hint');
+    hb.hidden=ps!=='shown';
+    hb.textContent=hn>=MAX_HINTS?'Sem mais dicas':'Liberar dica '+(hn+1)+' de '+MAX_HINTS+' (perde 1 ponto)';
+    if(hn>=MAX_HINTS||myTurn===false)hb.disabled=true;
+    $('#p-hints').textContent=(ps==='shown'&&cur)?cur.hints.slice(0,hn).map((t,i)=>'Dica '+(i+1)+': '+t).join('  |  '):'';
     if(ps==='shown'&&T.left>0)$('#p-mod').textContent=cur.mod.name+'. '+cur.mod.hint;
     else if(ps!=='shown'&&T.left>0)$('#p-mod').textContent=rMod?(rMod+(rCat?'. '+rCat:'')):' ';
     $('#p-tally').textContent='Acertos '+ok+', passes '+pass;
-    $$('.pactions button').forEach(b=>{b.disabled=myTurn===false});
+    $$('.pactions button').forEach(b=>{b.disabled=myTurn===false||(b.id==='p-hint'&&hn>=MAX_HINTS)});
   }
   $('#p-draw').addEventListener('click',()=>{if(!T.running&&T.left<=0)T.set(dur);draw()});
   $('#p-reveal').addEventListener('click',()=>{ps='shown';render()});
   $('#p-start').addEventListener('click',()=>{const secs=Math.round(T.left/1000);T.start();tx({k:'start',secs});render()});
   $('#p-pass').addEventListener('click',()=>{pass++;draw()});
-  $('#p-ok').addEventListener('click',()=>{tx({k:'ok',lvl:cur?cur.level:0});ok++;T.stop();ps='idle';T.set(dur);render()});
+  $('#p-hint').addEventListener('click',()=>{
+    if(ps!=='shown'||!cur||hn>=MAX_HINTS)return;
+    hn++;tx({k:'hint',n:hn,text:cur.hints[hn-1]||''});render();
+  });
+  $('#p-ok').addEventListener('click',()=>{tx({k:'ok',n:hn});ok++;T.stop();ps='idle';hn=0;T.set(dur);render()});
   const sEl=$('#p-sync');
   if(room){
     let seenTurn=false,roster={};
@@ -997,7 +1122,7 @@ function initPhone(room,myTeam){
       const turn={id:m.id.slice(0,4),name:m.name.slice(0,22),c:m.c};
       paintTeam(turn);
       if(myTeam&&turn.id!==myTeam)return;
-      if([30,60,90].includes(+m.dur))setDur(+m.dur);
+      if([90,120,180].includes(+m.dur))setDur(+m.dur);
       const r=m.rid|0;
       if(r!==rid){rid=r;newRound()}
       rMod=MODS.some(x=>x.name===m.mod)?m.mod:'';
