@@ -542,7 +542,7 @@ $('#teams').addEventListener('click',e=>{
   if(act==='add')addScore(id,1);
   else if(act==='sub')addScore(id,-1);
   else if(act==='add5')addScore(id,5);
-  else if(act==='turn'){S.turn=S.teams.findIndex(t=>t.id===id);save();renderBoard()}
+  else if(act==='turn'){const ni=S.teams.findIndex(t=>t.id===id);if(ni!==S.turn){S.turn=ni;resetRound();save();renderBoard();renderIea()}}
   else if(act==='rm')arm(b,'Confirmar?',()=>{
     S.teams=S.teams.filter(t=>t.id!==id);
     photos.forEach(p=>{if(p.team===id)p.team=''});
@@ -615,8 +615,12 @@ function drawWord(catId){
 }
 
 /* ---------- IMAGEM E AÇÃO (computador) ---------- */
-const iea={mod:null,cat:null,phase:'idle',busy:false,lvl:0,hit:false};
+const iea={mod:null,cat:null,phase:'idle',busy:false,lvl:0,hit:false,rid:1};
 const ieaT=makeTimer($('#iea-clock'),$('#iea-bar'),()=>{iea.phase='done';renderIea()});
+function resetRound(){
+  iea.rid++;iea.phase='idle';iea.mod=null;iea.cat=null;iea.lvl=0;iea.hit=false;
+  ieaT.set(S.dur);
+}
 (function(){
   const sel=$('#iea-catsel');
   sel.innerHTML='<option value="*">Categoria sorteada</option>'+CATS.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
@@ -652,7 +656,7 @@ async function ieaRoll(){
     const slot=$('#iea-slot');
     for(let k=0;k<14;k++){slot.textContent=MODS[k%MODS.length].name;beep(300+k*25,.04,0,.05);await sleep(55+k*14)}
   }
-  iea.mod=fm;iea.cat=fc;iea.lvl=0;iea.hit=false;iea.phase='idle';renderIea();iea.busy=false;
+  iea.mod=fm;iea.cat=fc;iea.lvl=0;iea.hit=false;iea.phase='idle';iea.rid++;renderIea();iea.busy=false;
 }
 $('#iea-roll').addEventListener('click',ieaRoll);
 $('#iea-start').addEventListener('click',()=>{iea.phase='running';ieaT.start();renderIea()});
@@ -667,9 +671,7 @@ $('#iea-award').addEventListener('click',e=>{
   const b=e.target.closest('button[data-pts]');if(!b)return;
   const n=+b.dataset.pts,t=S.teams[S.turn];
   if(n>0)addScore(t.id,n);
-  nextTurn();
-  iea.phase='idle';iea.mod=null;iea.cat=null;iea.lvl=0;iea.hit=false;
-  ieaT.set(S.dur);renderIea();
+  resetRound();nextTurn();renderIea();
 });
 /* palavra no computador */
 $('#iea-draw').addEventListener('click',()=>{
@@ -883,10 +885,12 @@ function setSync(el,state,text){el.dataset.s=state;el.textContent=text}
 let HS=null,hostPhone=false,lastTurnSent='';
 function sendTurn(force){
   if(!HS)return;
-  const t=S.teams[S.turn]||S.teams[0],key=S.turn+'|'+S.teams.map(x=>x.id+':'+x.name+':'+x.c).join(',');
+  const t=S.teams[S.turn]||S.teams[0];
+  const teams=S.teams.map(x=>({id:x.id,name:x.name,c:x.c}));
+  const st={k:'state',id:t.id,name:t.name,c:t.c,teams,rid:iea.rid,phase:iea.phase,mod:iea.mod?iea.mod.name:'',cat:iea.cat?iea.cat.name:'',dur:S.dur,secs:Math.round(ieaT.left/1000)};
+  const key=[S.turn,st.rid,st.phase,st.mod,st.cat,st.dur,JSON.stringify(teams)].join('|');
   if(!force&&key===lastTurnSent)return;
-  lastTurnSent=key;
-  HS.send({k:'turn',id:t.id,name:t.name,c:t.c,teams:S.teams.map(x=>({id:x.id,name:x.name,c:x.c}))});
+  lastTurnSent=key;HS.send(st);
 }
 function onPhoneMsg(m){
   const lvl=(m.lvl>=1&&m.lvl<=3)?(m.lvl|0):0;
@@ -923,7 +927,7 @@ document.addEventListener('pointerdown',unlockAudio,{once:true});
 let pInit=false;
 function initPhone(room,myTeam){
   if(pInit)return;pInit=true;
-  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{},myTurn=null;
+  let ps='idle',cur=null,ok=0,pass=0,dur=60,tx=()=>{},myTurn=null,rid=null,rMod='',rCat='';
   const sel=new Set(CATS.map(c=>c.id));
   const chips=$('#p-cats');
   CATS.forEach(c=>{
@@ -936,27 +940,30 @@ function initPhone(room,myTeam){
   });
   const T=makeTimer($('#p-clock'),$('#p-bar'),()=>{$('#p-mod').textContent='Tempo!';render()});
   T.set(dur);
-  $('#p-dur').addEventListener('click',e=>{
-    const b=e.target.closest('button[data-s]');if(!b)return;
-    dur=+b.dataset.s;if(!T.running)T.set(dur);
+  function setDur(s){
+    dur=s;if(!T.running)T.set(dur);
     $$('#p-dur button').forEach(x=>x.setAttribute('aria-pressed',String(+x.dataset.s===dur)));
-  });
+  }
+  $('#p-dur').addEventListener('click',e=>{const b=e.target.closest('button[data-s]');if(b)setDur(+b.dataset.s)});
   function draw(){
-    const ids=Array.from(sel);
-    cur=drawWord(pick(ids));cur.mod=pick(MODS);ps='hidden';render();
+    const rc=rCat?CATS.find(c=>c.name===rCat):null;
+    cur=drawWord(rc?rc.id:pick(Array.from(sel)));
+    cur.mod=(rMod&&MODS.find(x=>x.name===rMod))||pick(MODS);
+    ps='hidden';render();
     tx({k:'draw',mod:cur.mod.name,cat:cur.cat.name,lvl:cur.level});
   }
+  function newRound(){T.stop();T.set(dur);ps='idle';cur=null;render()}
   function render(){
     $('#p-draw').hidden=ps!=='idle';
     $('#p-reveal').hidden=ps!=='hidden';
     $('#p-start').hidden=!(ps==='shown'&&!T.running&&T.left>0&&T.left===dur*1000);
     $('#p-two').hidden=ps==='idle'||ps==='hidden';
     const w=$('#p-word');
-    if(ps==='idle'){w.className='pword small';w.textContent='Toque em Sortear palavra';$('#p-meta').textContent=' '}
-    else if(ps==='hidden'){w.className='pword small';w.textContent='Palavra sorteada. Só o mímico olha.';$('#p-meta').textContent=' '}
+    if(ps==='idle'){w.className='pword small';w.textContent='Toque em Sortear palavra';$('#p-meta').textContent=' '}
+    else if(ps==='hidden'){w.className='pword small';w.textContent='Palavra sorteada. Só o mímico olha.';$('#p-meta').textContent=' '}
     else{w.className='pword';w.textContent=cur.word;$('#p-meta').textContent=cur.cat.name+'. Vale '+cur.level+(cur.level>1?' pontos.':' ponto.')}
     if(ps==='shown'&&T.left>0)$('#p-mod').textContent=cur.mod.name+'. '+cur.mod.hint;
-    else if(ps!=='shown'&&T.left>0)$('#p-mod').textContent=' ';
+    else if(ps!=='shown'&&T.left>0)$('#p-mod').textContent=rMod?(rMod+(rCat?'. '+rCat:'')):' ';
     $('#p-tally').textContent='Acertos '+ok+', passes '+pass;
     $$('.pactions button').forEach(b=>{b.disabled=myTurn===false});
   }
@@ -964,7 +971,7 @@ function initPhone(room,myTeam){
   $('#p-reveal').addEventListener('click',()=>{ps='shown';render()});
   $('#p-start').addEventListener('click',()=>{const secs=Math.round(T.left/1000);T.start();tx({k:'start',secs});render()});
   $('#p-pass').addEventListener('click',()=>{pass++;draw()});
-  $('#p-ok').addEventListener('click',()=>{tx({k:'ok',lvl:cur?cur.level:0});ok++;T.stop();ps='idle';T.set(dur);$('#p-mod').textContent=' ';render()});
+  $('#p-ok').addEventListener('click',()=>{tx({k:'ok',lvl:cur?cur.level:0});ok++;T.stop();ps='idle';T.set(dur);render()});
   const sEl=$('#p-sync');
   if(room){
     let seenTurn=false,roster={};
@@ -982,14 +989,30 @@ function initPhone(room,myTeam){
       }
       render();
     };
-    const sy=makeSync(room,m=>{
-      if(m&&m.k==='turn'&&typeof m.name==='string'&&typeof m.id==='string'){
-        seenTurn=true;
-        roster={};
-        if(Array.isArray(m.teams))m.teams.slice(0,6).forEach(t=>{if(t&&typeof t.id==='string'&&typeof t.name==='string')roster[t.id.slice(0,4)]={name:t.name.slice(0,22),c:t.c}});
-        setSync(sEl,'on','Conectado ao telão.');
-        paintTeam({id:m.id.slice(0,4),name:m.name.slice(0,22),c:m.c});
+    const applyState=m=>{
+      seenTurn=true;
+      roster={};
+      if(Array.isArray(m.teams))m.teams.slice(0,6).forEach(t=>{if(t&&typeof t.id==='string'&&typeof t.name==='string')roster[t.id.slice(0,4)]={name:t.name.slice(0,22),c:t.c}});
+      setSync(sEl,'on','Conectado ao telão.');
+      const turn={id:m.id.slice(0,4),name:m.name.slice(0,22),c:m.c};
+      paintTeam(turn);
+      if(myTeam&&turn.id!==myTeam)return;
+      if([30,60,90].includes(+m.dur))setDur(+m.dur);
+      const r=m.rid|0;
+      if(r!==rid){rid=r;newRound()}
+      rMod=MODS.some(x=>x.name===m.mod)?m.mod:'';
+      rCat=CATS.some(c=>c.name===m.cat)?m.cat:'';
+      if(m.phase==='running'&&!T.running){
+        const s=Math.max(5,Math.min(300,Math.round(+m.secs)||dur));
+        if(ps==='idle')draw();
+        ps='shown';T.set(s);T.start();
+      }else if(m.phase==='done'&&T.running){
+        T.stop();
       }
+      render();
+    };
+    const sy=makeSync(room,m=>{
+      if(m&&m.k==='state'&&typeof m.name==='string'&&typeof m.id==='string')applyState(m);
     },st=>{
       if(st==='on'){setSync(sEl,'on',seenTurn?'Conectado ao telão.':'Conectado. Procurando o telão…');sy.send({k:'hi'})}
       else setSync(sEl,'bad','Sem conexão. Confira a internet do celular.');
