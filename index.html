@@ -118,6 +118,19 @@ main{min-width:0;display:grid;gap:1.25rem}
 .slot{font:900 clamp(2rem,6vw,4.4rem)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
 .tag{display:inline-block;padding:.3em .8em;border:1px solid var(--line);border-radius:999px;font:700 .85rem/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--surface-2)}
 .hint{font-size:1.1rem;color:var(--muted);min-height:1.6em}
+.stletter{font:900 clamp(7rem,22vw,15rem)/1 var(--f-display);text-align:center;color:var(--accent);text-transform:uppercase}
+.stthemes{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.4rem .9rem;list-style:none;padding:0;font-size:1.4rem;font-weight:700}
+.stthemes li{padding:.35em .6em;background:var(--surface-2);border-radius:8px}
+.sttable{width:100%;border-collapse:collapse;font-size:1.05rem}
+.sttable th,.sttable td{border:1px solid var(--line);padding:.4em .55em;text-align:left;vertical-align:top}
+.sttable thead th{background:var(--tc,var(--surface-2));color:var(--team-ink,inherit)}
+.sttable td[data-k]{cursor:pointer}
+.sttable td.ok{background:color-mix(in srgb,var(--ok) 22%,transparent)}
+.sttable td.shared{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+.sttable td.bad{background:color-mix(in srgb,var(--danger) 18%,transparent);text-decoration:line-through;color:var(--muted)}
+.sttable tfoot td{font-weight:800}
+.sfield{display:grid;gap:.25rem}
+.sfield input{font-size:1.2rem;padding:.7em;width:100%}
 .fprev{width:100%;max-height:55vh;object-fit:contain;border-radius:10px;background:var(--surface-2)}
 .fbtn{display:block;width:100%;font-size:1.2rem;padding:.9em}
 .hints{display:grid;gap:.35rem;font-size:1.35rem;font-weight:600;min-height:1.6em}
@@ -203,6 +216,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <nav class="tabs" role="tablist" aria-label="Jogos">
       <button class="tab" role="tab" data-tab="imagem">Imagem e Ação</button>
       <button class="tab" role="tab" data-tab="fotos">Fotos em Equipe</button>
+      <button class="tab" role="tab" data-tab="stop">Stop</button>
     </nav>
     <div class="tools">
       <button class="btn sm" id="btn-sound" aria-pressed="true">Som ligado</button>
@@ -284,6 +298,49 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
         </aside>
       </section>
 
+      <!-- STOP -->
+      <section id="tab-stop" hidden>
+        <div class="stage">
+          <p class="eyebrow">Stop. Quem terminar primeiro trava as outras equipes.</p>
+          <div id="st-letter" class="stletter">?</div>
+          <ol id="st-themes" class="stthemes"></ol>
+          <div class="clock mid" id="st-clock">01:30</div>
+          <div class="bar"><i id="st-bar"></i></div>
+          <p id="st-info" class="hint"></p>
+          <div class="row controls">
+            <div class="seg" id="st-dur" role="group" aria-label="Tempo da rodada">
+              <button data-s="60" aria-pressed="false">1 min</button>
+              <button data-s="90" aria-pressed="true">1:30</button>
+              <button data-s="120" aria-pressed="false">2 min</button>
+            </div>
+          </div>
+          <div class="row controls">
+            <button id="st-draw" class="btn big">Sortear letra e temas</button>
+            <button id="st-go" class="btn big primary" hidden>Valendo! Iniciar</button>
+            <button id="st-halt" class="btn big" hidden>Parar agora</button>
+            <button id="st-apply" class="btn big primary" hidden>Aplicar pontos e encerrar</button>
+          </div>
+          <div id="st-review" hidden>
+            <p class="note">Toque numa resposta para validar ou invalidar. Verde vale 2, amarelo (repetida) vale 1, riscada vale 0.</p>
+            <div style="overflow-x:auto"><table class="sttable" id="st-table"></table></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:1.25rem">
+          <h2 class="h-sm">Celulares das equipes</h2>
+          <p class="note sync" id="st-sync" data-s="off">Sincronia desligada.</p>
+          <details open>
+            <summary>QR do Stop (um por equipe)</summary>
+            <div class="qrgrid" id="st-qrs"></div>
+            <p class="note" id="st-qrmsg"></p>
+          </details>
+          <details>
+            <summary>Editar a lista de temas</summary>
+            <label for="st-list">Um tema por linha</label>
+            <textarea id="st-list" rows="8"></textarea>
+          </details>
+        </div>
+      </section>
+
       <!-- FOTOS EM EQUIPE -->
       <section id="tab-fotos" hidden>
         <div class="stage">
@@ -342,6 +399,21 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
     <button class="btn" id="show-next">Próxima</button>
     <button class="btn" id="show-close">Fechar</button>
   </div>
+</div>
+
+<!-- vista do celular do Stop (#stop-sala-equipe) -->
+<div id="stopph" class="phone" hidden>
+  <div>
+    <p class="eyebrow">Stop</p>
+    <p class="tag" id="s-team" hidden></p>
+    <p class="note sync" id="s-sync" data-s="off"></p>
+  </div>
+  <div class="stletter" id="s-letter" style="font-size:7rem">?</div>
+  <div class="clock mid" id="s-clock">01:30</div>
+  <div class="bar"><i id="s-bar"></i></div>
+  <div id="s-list" style="display:grid;gap:.7rem"></div>
+  <button class="btn primary fbtn" id="s-send" disabled>STOP! Enviar respostas</button>
+  <p class="note" id="s-status" role="status">Aguarde o sorteio da letra.</p>
 </div>
 
 <!-- vista do celular para enviar fotos (#foto) -->
@@ -525,6 +597,8 @@ Jogar basquete|Esporte coletivo|Quicar uma bola laranja|Arremessar na cesta
 Passar protetor solar|Praia|Espalhar creme no corpo|Evita queimadura
 Andar de montanha-russa|Parque de diversões|Sobe devagar e despenca|Gritos e braços para o alto`)},
 ];
+const STOP_THEMES=['Nome de menino','Nome de menina','Animal','Cidade, estado ou país','Cor','Fruta','Comida','Objeto da casa','Profissão','Personagem bíblico','Livro da Bíblia','Lugar da Bíblia','Coisa que tem na igreja','Cantor ou banda','Música de louvor','Marca','Filme ou série','Esporte','Parte do corpo','Meio de transporte','Coisa que dá medo','Time de futebol','Instrumento musical','Peça de roupa','Flor ou planta','Coisa gelada','Coisa que faz barulho','Matéria da escola','App ou rede social','Personagem de desenho','Doce ou sobremesa','Coisa de acampamento','Algo que se faz de madrugada','Milagre ou parábola de Jesus','Bebida','Superpoder'].join('\n');
+const LETTERS='ABCDEFGHIJLMNOPQRSTUV';
 const CHALLENGES=[
  'Recriem uma cena bíblica em até 5 minutos, sem rir',
  'Davi contra Golias: a equipe toda numa pose dramática',
@@ -589,7 +663,7 @@ const CHALLENGES=[
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
   nid:5,turn:0,tab:'imagem',dur:120,ver:3,mute:false,
-  phDur:300,challenges:CHALLENGES,usedCh:[],gone:[],link:'',room:''
+  phDur:300,challenges:CHALLENGES,usedCh:[],gone:[],stopList:STOP_THEMES,stopDur:90,link:'',room:''
 };
 function load(){
   const d=JSON.parse(JSON.stringify(DEF));
@@ -601,6 +675,8 @@ function load(){
       if(!ok) d.teams=JSON.parse(JSON.stringify(DEF.teams));
       if(!Array.isArray(d.usedCh)) d.usedCh=[];
       if(!Array.isArray(d.gone)) d.gone=[];
+      if(typeof d.stopList!=='string'||!d.stopList.trim())d.stopList=STOP_THEMES;
+      if(![60,90,120].includes(d.stopDur))d.stopDur=90;
       if(!(o.ver>=2))d.dur=120;
       if(o.ver!==3){
         const have=String(d.challenges||'').split('\n').map(x=>x.trim());
@@ -746,7 +822,7 @@ $('#score-reset').addEventListener('click',e=>arm(e.currentTarget,'Zerar mesmo?'
 function nextTurn(){S.turn=(S.turn+1)%S.teams.length;save();renderBoard()}
 
 /* ---------- abas e rotas ---------- */
-const TABS=['imagem','fotos'];
+const TABS=['imagem','fotos','stop'];
 function setTab(t,fromHash){
   if(!TABS.includes(t))t='imagem';
   S.tab=t;save();
@@ -758,8 +834,10 @@ $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 function route(){
   const h=(location.hash||'').slice(1),pm=/^celular(?:-([a-z0-9]{6,12})(?:-(t[0-9]{1,2}))?)?$/.exec(h),ph=!!pm;
   const fm=/^foto-([a-z0-9]{6,12})-(t[0-9]{1,2})$/.exec(h);
-  $('#host').hidden=ph||!!fm;$('#phone').hidden=!ph;$('#foto').hidden=!fm;
-  if(fm)initFoto(fm[1],fm[2]);
+  const sm=/^stop-([a-z0-9]{6,12})-(t[0-9]{1,2})$/.exec(h);
+  $('#host').hidden=ph||!!fm||!!sm;$('#phone').hidden=!ph;$('#foto').hidden=!fm;$('#stopph').hidden=!sm;
+  if(sm)initStopPhone(sm[1],sm[2]);
+  else if(fm)initFoto(fm[1],fm[2]);
   else if(ph)initPhone(pm[1]||'',pm[2]||'');else setTab(TABS.includes(h)?h:S.tab,true);
 }
 window.addEventListener('hashchange',route);
@@ -897,6 +975,20 @@ function fotoLink(t){
   const raw=$('#phone-link').value.trim();
   return /^https:\/\/\S+$/.test(raw)?raw.split('#')[0]+'#foto-'+S.room+'-'+t.id:'';
 }
+function stopLink(t){
+  const raw=$('#phone-link').value.trim();
+  return /^https:\/\/\S+$/.test(raw)?raw.split('#')[0]+'#stop-'+S.room+'-'+t.id:'';
+}
+function renderStopQrs(){
+  const box=$('#st-qrs');box.textContent='';let any=false;
+  S.teams.forEach(t=>{
+    const full=stopLink(t),svg=full?qrSvg(full,1):null;if(svg)any=true;
+    const c=document.createElement('div');c.className='qcell';c.style.setProperty('--tc',tcol(t));
+    c.innerHTML='<b>'+esc(t.name)+'</b><div>'+(svg||'')+'</div>';
+    box.appendChild(c);
+  });
+  $('#st-qrmsg').textContent=any?'Cada equipe escaneia só o QR dela. Quem vai escrever as palavras fica com o celular.':'Abra a página pelo endereço publicado (https) para gerar os QR.';
+}
 function renderFotoQrs(){
   const box=$('#ph-qrs');box.textContent='';
   let any=false;
@@ -909,7 +1001,7 @@ function renderFotoQrs(){
   $('#ph-qrmsg').textContent=any?'Cada equipe escaneia só o QR dela.':'Abra a página pelo endereço publicado (https) para gerar os QR.';
 }
 function buildPhoneQr(){
-  renderFotoQrs();
+  renderFotoQrs();renderStopQrs();
   const raw=$('#phone-link').value.trim();
   const t=S.teams[S.turn]||S.teams[0];
   const qr=$('#phone-qr'),url=$('#phone-url'),cp=$('#phone-copy'),msg=$('#phone-msg'),tg=$('#phone-team'),all=$('#phone-all-btn');
@@ -1147,10 +1239,104 @@ function sendTurn(force){
   if(!force&&key===lastTurnSent)return;
   lastTurnSent=key;HS.send(st);
 }
+/* ---------- STOP (telão) ---------- */
+const ST={rid:0,phase:'idle',letter:'',themes:[],by:'',ans:{},off:{},pts:{},used:new Set()};
+const stT=makeTimer($('#st-clock'),$('#st-bar'),()=>{if(ST.phase==='play')stopLock('')});
+const nrm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+function stopPub(){
+  if(!HS)return;
+  HS.send({k:'stop',rid:ST.rid,phase:ST.phase,letter:ST.letter,themes:ST.themes,by:ST.by,secs:Math.round(stT.left/1000),dur:S.stopDur,pts:ST.pts});
+}
+function stopCell(tid,i){
+  const a=(ST.ans[tid]||[])[i]||'';
+  const auto=nrm(a).length>=2&&nrm(a)[0]===nrm(ST.letter);
+  return {a,valid:auto!==!!ST.off[tid+':'+i]};
+}
+function stopScore(){
+  const pts={},cells={};
+  S.teams.forEach(t=>pts[t.id]=0);
+  ST.themes.forEach((_,i)=>{
+    const cnt={};
+    S.teams.forEach(t=>{const c=stopCell(t.id,i);cells[t.id+':'+i]=c;if(c.valid)cnt[nrm(c.a)]=(cnt[nrm(c.a)]||0)+1});
+    S.teams.forEach(t=>{const c=cells[t.id+':'+i];c.shared=c.valid&&cnt[nrm(c.a)]>1;if(c.valid)pts[t.id]+=c.shared?1:2});
+  });
+  return {pts,cells};
+}
+function stopLock(by){
+  if(ST.phase!=='play')return;
+  stT.stop();ST.phase='locked';ST.by=by||'';stopPub();renderStop();
+}
+function renderStop(){
+  const p=ST.phase;
+  $('#st-letter').textContent=ST.letter||'?';
+  $('#st-themes').innerHTML=ST.themes.map(t=>'<li>'+esc(t)+'</li>').join('');
+  $('#st-draw').hidden=p==='play'||p==='locked';
+  $('#st-draw').textContent=p==='done'?'Próxima rodada':'Sortear letra e temas';
+  $('#st-go').hidden=p!=='ready';
+  $('#st-halt').hidden=p!=='play';
+  $('#st-apply').hidden=p!=='locked';
+  $$('#st-dur button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.s===S.stopDur)));
+  const by=team(ST.by);
+  $('#st-info').textContent=({idle:'Sorteie a letra e os temas.',ready:'Letra e temas sorteados. Os celulares já mostram. Toque em Valendo! quando todos estiverem prontos.',play:'Valendo! A primeira equipe que enviar trava as outras.',locked:(by?'A equipe '+by.name+' parou! ':'Acabou o tempo! ')+'Confira as respostas e aplique os pontos.',done:'Rodada encerrada. Pontos aplicados no placar.'})[p];
+  const rv=$('#st-review');rv.hidden=!(p==='locked'||p==='done');
+  if(!rv.hidden){
+    const {pts,cells}=stopScore();
+    let t='<thead><tr><th>Tema</th>'+S.teams.map(x=>'<th style="--tc:'+tcol(x)+'">'+esc(x.name)+'</th>').join('')+'</tr></thead><tbody>';
+    ST.themes.forEach((th,i)=>{
+      t+='<tr><th scope="row">'+esc(th)+'</th>'+S.teams.map(x=>{
+        const c=cells[x.id+':'+i],got=Array.isArray(ST.ans[x.id]);
+        const cls=!got?'':(c.valid?(c.shared?'shared':'ok'):'bad');
+        return '<td data-k="'+x.id+':'+i+'" class="'+cls+'">'+(got?esc(c.a)||'—':'…')+'</td>';
+      }).join('')+'</tr>';
+    });
+    t+='</tbody><tfoot><tr><td>Pontos</td>'+S.teams.map(x=>'<td>'+(p==='done'?(ST.pts[x.id]||0):pts[x.id])+'</td>').join('')+'</tr></tfoot>';
+    $('#st-table').innerHTML=t;
+  }
+}
+$('#st-draw').addEventListener('click',()=>{
+  unlockAudio();
+  let pool=LETTERS.split('').filter(l=>!ST.used.has(l));
+  if(!pool.length){ST.used.clear();pool=LETTERS.split('')}
+  const l=pick(pool);ST.used.add(l);
+  const all=S.stopList.split('\n').map(s=>s.trim()).filter(Boolean);
+  const th=[];const src=all.slice();
+  while(th.length<6&&src.length)th.push(src.splice(Math.floor(Math.random()*src.length),1)[0]);
+  ST.rid++;ST.letter=l;ST.themes=th;ST.by='';ST.ans={};ST.off={};ST.pts={};ST.phase='ready';
+  stT.set(S.stopDur);stopPub();renderStop();
+});
+$('#st-go').addEventListener('click',()=>{ST.phase='play';stT.start();stopPub();renderStop();beep(660,.15)});
+$('#st-halt').addEventListener('click',()=>stopLock(''));
+$('#st-apply').addEventListener('click',()=>{
+  if(ST.phase!=='locked')return;
+  const {pts}=stopScore();
+  S.teams.forEach(t=>{if(pts[t.id])addScore(t.id,pts[t.id])});
+  ST.pts=pts;ST.phase='done';stopPub();renderStop();
+});
+$('#st-table').addEventListener('click',e=>{
+  const td=e.target.closest('td[data-k]');if(!td||ST.phase!=='locked')return;
+  ST.off[td.dataset.k]=!ST.off[td.dataset.k];renderStop();
+});
+$('#st-dur').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-s]');if(!b)return;
+  S.stopDur=+b.dataset.s;save();
+  if(ST.phase==='idle'||ST.phase==='ready'||ST.phase==='done')stT.set(S.stopDur);
+  renderStop();
+});
+$('#st-list').value=S.stopList;
+$('#st-list').addEventListener('input',e=>{S.stopList=e.target.value;save()});
+function onStopMsg(m){
+  const t=team(m.t);
+  if(!t||m.rid!==ST.rid||!Array.isArray(m.ans))return;
+  const ans=m.ans.slice(0,ST.themes.length).map(x=>String(x==null?'':x).slice(0,40));
+  while(ans.length<ST.themes.length)ans.push('');
+  if(m.k==='stopsub'&&ST.phase==='play'){ST.ans[t.id]=ans;stopLock(t.id);return}
+  if(ST.phase==='locked'&&!Array.isArray(ST.ans[t.id])){ST.ans[t.id]=ans;renderStop()}
+}
 function onPhoneMsg(m){
+  if(m.k==='stopsub'||m.k==='stopans'){onStopMsg(m);return}
   const hn=(m.n>=0&&m.n<=MAX_HINTS)?(m.n|0):0;
   hostPhone=true;setSync($('#sync-status'),'on','Celular conectado.');
-  if(m.k==='hi'){sendTurn(true);return}
+  if(m.k==='hi'){sendTurn(true);if(ST.phase!=='idle')stopPub();return}
   const curT=S.teams[S.turn]||S.teams[0];
   if(m.t&&m.t!==curT.id)return;
   if(iea.phase==='done')return;
@@ -1289,6 +1475,72 @@ function initPhone(room,myTeam){
   render();
 }
 
+/* ---------- CELULAR: STOP (#stop-sala-equipe) ---------- */
+let sInit=false;
+function initStopPhone(room,myTeam){
+  if(sInit)return;sInit=true;
+  const st=$('#s-status'),send=$('#s-send'),list=$('#s-list'),sEl=$('#s-sync');
+  let rid=-1,phase='idle',sent=false,roster={},themes=[];
+  const T=makeTimer($('#s-clock'),$('#s-bar'),()=>{});
+  const col=c=>'var('+COLORS[(c>=0&&c<=5)?(c|0):0]+')';
+  const tg=$('#s-team');tg.hidden=false;tg.textContent='Sua equipe';
+  const vals=()=>$$('input',list).map(i=>i.value.trim());
+  function build(){
+    list.textContent='';
+    themes.forEach((t,i)=>{
+      const w=document.createElement('label');w.className='sfield';
+      w.innerHTML='<span>'+esc(t)+'</span>';
+      const inp=document.createElement('input');inp.type='text';inp.maxLength=40;inp.autocomplete='off';inp.placeholder='Começa com '+$('#s-letter').textContent;
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=$$('input',list)[i+1];if(n)n.focus()}});
+      w.appendChild(inp);list.appendChild(w);
+    });
+  }
+  function paint(){
+    $$('input',list).forEach(i=>{i.disabled=phase!=='play'||sent});
+    send.disabled=!(phase==='play'&&!sent);
+  }
+  function onState(m){
+    if(typeof m.rid!=='number'||!Array.isArray(m.themes))return;
+    if(m.rid!==rid){
+      rid=m.rid;sent=false;themes=m.themes.slice(0,8).map(x=>String(x).slice(0,50));
+      $('#s-letter').textContent=String(m.letter||'?').slice(0,2);build();
+    }
+    phase=String(m.phase);
+    const dur=[60,90,120].includes(+m.dur)?+m.dur:90;
+    if(phase==='ready'){T.stop();T.set(dur);st.textContent='Letra sorteada. Esperando o telão iniciar.'}
+    else if(phase==='play'){
+      if(!T.running){T.set(Math.max(1,Math.min(150,Math.round(+m.secs)||dur)));T.start()}
+      if(!sent)st.textContent='Valendo! Escreva rápido e toque em STOP quando terminar.';
+    }else{
+      T.stop();
+      if(phase==='locked'||phase==='done'){
+        if(!sent){sent=true;sy.send({t:myTeam,k:'stopans',rid,ans:vals()})}
+        const by=m.by&&roster[m.by];
+        if(phase==='locked')st.textContent=(m.by===myTeam?'Você parou! ':(by?'A equipe '+by.name+' parou! ':'Acabou o tempo! '))+'Suas respostas foram enviadas ao telão.';
+        else st.textContent='Rodada encerrada. Sua equipe fez '+((m.pts&&+m.pts[myTeam])||0)+' ponto(s).';
+      }
+    }
+    paint();
+  }
+  const sy=makeSync(room,m=>{
+    if(!m||typeof m!=='object')return;
+    if(m.k==='state'&&Array.isArray(m.teams)){
+      roster={};m.teams.slice(0,6).forEach(t=>{if(t&&typeof t.id==='string'&&typeof t.name==='string')roster[t.id.slice(0,4)]={name:t.name.slice(0,22),c:t.c}});
+      const mine=roster[myTeam];if(mine){tg.textContent='Equipe '+mine.name;tg.style.setProperty('--tc',col(mine.c))}
+      setSync(sEl,'on','Conectado ao telão.');
+    }else if(m.k==='stop')onState(m);
+  },s=>{
+    if(s==='on'){setSync(sEl,'on','Conectado. Procurando o telão…');sy.send({k:'hi'})}
+    else setSync(sEl,'bad','Sem conexão. Confira a internet do celular.');
+  });
+  send.addEventListener('click',()=>{
+    if(phase!=='play'||sent)return;
+    sent=true;sy.send({t:myTeam,k:'stopsub',rid,ans:vals()});
+    st.textContent='Você parou! Suas respostas foram enviadas ao telão.';paint();
+  });
+  paint();
+}
+
 /* ---------- CELULAR: ENVIAR FOTO (#foto) ---------- */
 let fInit=false;
 function initFoto(room,myTeam){
@@ -1349,9 +1601,9 @@ function initFoto(room,myTeam){
   $('#phone-link').value=S.link||'';
   try{if(/^https?:$/.test(location.protocol))$('#phone-link').value=location.href.split('#')[0]}catch(e){}
   S.link=$('#phone-link').value.trim();
-  ieaT.set(S.dur);phT.set(S.phDur);
+  ieaT.set(S.dur);phT.set(S.phDur);stT.set(S.stopDur);renderStop();
   renderBoard();renderIea();renderPh();renderPhotos();buildPhoneQr();
-  if(!/^#(celular|foto)(-|$)/.test(location.hash)){startHostSync();startPhotoSub()}
+  if(!/^#(celular(-|$)|foto-|stop-)/.test(location.hash)){startHostSync();startPhotoSub()}
   route();
 })();
 })();
