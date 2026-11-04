@@ -118,6 +118,7 @@ main{min-width:0;display:grid;gap:1.25rem}
 .slot{font:900 clamp(2rem,6vw,4.4rem)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
 .tag{display:inline-block;padding:.3em .8em;border:1px solid var(--line);border-radius:999px;font:700 .85rem/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--surface-2)}
 .hint{font-size:1.1rem;color:var(--muted);min-height:1.6em}
+.stletter.spin{opacity:.85;transform:scale(1.04);transition:transform .08s}
 .stletter{font:900 clamp(7rem,22vw,15rem)/1 var(--f-display);text-align:center;color:var(--accent);text-transform:uppercase}
 .stthemes{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.4rem .9rem;list-style:none;padding:0;font-size:1.4rem;font-weight:700}
 .stthemes li{padding:.35em .6em;background:var(--surface-2);border-radius:8px}
@@ -1293,7 +1294,9 @@ function renderStop(){
     $('#st-table').innerHTML=t;
   }
 }
-$('#st-draw').addEventListener('click',()=>{
+let stBusy=false;
+$('#st-draw').addEventListener('click',async()=>{
+  if(stBusy)return;stBusy=true;
   unlockAudio();
   let pool=LETTERS.split('').filter(l=>!ST.used.has(l));
   if(!pool.length){ST.used.clear();pool=LETTERS.split('')}
@@ -1301,6 +1304,22 @@ $('#st-draw').addEventListener('click',()=>{
   const all=S.stopList.split('\n').map(s=>s.trim()).filter(Boolean);
   const th=[];const src=all.slice();
   while(th.length<6&&src.length)th.push(src.splice(Math.floor(Math.random()*src.length),1)[0]);
+  /* animação de cerca de 5 s: troca rápida que vai desacelerando até a letra sorteada */
+  const el=$('#st-letter'),btn=$('#st-draw'),TOTAL=reduce?600:5000;
+  btn.disabled=true;$('#st-themes').innerHTML='';$('#st-info').textContent='Sorteando a letra…';
+  el.classList.add('spin');
+  const t0=performance.now();let k=0,last='';
+  while(true){
+    const el_=performance.now()-t0;
+    if(el_>=TOTAL)break;
+    const f=el_/TOTAL;
+    let c;do{c=LETTERS[Math.floor(Math.random()*LETTERS.length)]}while(c===last);
+    last=c;el.textContent=c;beep(280+(k%12)*40,.05,0,.05);k++;
+    await sleep(reduce?120:60+Math.pow(f,2.2)*520);
+  }
+  el.classList.remove('spin');
+  el.textContent=l;beep(880,.25,0,.12);
+  btn.disabled=false;stBusy=false;
   ST.rid++;ST.letter=l;ST.themes=th;ST.by='';ST.ans={};ST.off={};ST.pts={};ST.phase='ready';
   stT.set(S.stopDur);stopPub();renderStop();
 });
