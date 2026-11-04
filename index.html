@@ -614,35 +614,30 @@ const CHALLENGES=[
  'Formem a Arca de Noé com o corpo (os animais também valem)',
  'Foto no ar: todos pulando ao mesmo tempo',
  'Capa de filme com título inventado pela equipe',
- 'Torre humana de Babel, sem cair',
  'Um líder da igreja imitando um personagem bíblico, com a equipe junto',
  'Ato de serviço: arrumem algo na igreja e fotografem o antes e o depois',
  'Foto no escuro, só com a luz das lanternas dos celulares',
  'O grito de guerra da equipe, congelado na hora do grito',
  'Formem com o corpo a letra inicial do nome da equipe',
- 'A equipe fingindo dormir em lugares impossíveis',
  'Recriem a Última Ceia com o que tiver na cozinha',
  'Foto da equipe como a travessia do Mar Vermelho: metade de cada lado, um corredor no meio',
- 'Torre humana de três andares, sem ninguém cair',
  'Estátua viva: a equipe congelada como uma cena do presépio',
  'Foto de todos com o mesmo olhar de sono, sem ninguém rir',
  'O pastor mais bravo possível: todos imitando o Bom Pastor com as ovelhas',
- 'Recriem o Davi e o Golias, com um gigante feito de gente em pé nos ombros',
- 'Foto de todos ao contrário: de cabeça para baixo, ou com a foto virada',
+ 'Foto da equipe com a imagem virada de cabeça para baixo (todo mundo em pé, só a foto é girada)',
  'A pessoa mais alta e a mais baixa da equipe em pose de capa de revista',
  'Foto em câmera lenta: todos pulando, pegando o instante certo',
  'Todos os integrantes escondidos atrás de um único objeto, só com os olhos aparecendo',
  'Capa de álbum de louvor da equipe, com nome da banda e do álbum inventados',
  'Foto com um acessório improvisado na cabeça: cada um faz o seu com o que achar',
  'Recriem a cena do batismo de Jesus no Jordão com um balde e uma garrafa',
- 'Foto de equipe formando um coração com os corpos, visto de cima',
+ 'Foto de equipe formando um coração com os corpos deitados no chão, foto tirada em pé',
  'Selfie com a pessoa mais sonolenta da madrugada, sem acordá-la de verdade',
  'Foto de equipe usando as roupas ao contrário',
  'Cada um mostra a cara de quando o pregador passa do horário',
  'Recriem uma pintura famosa de arte sacra, do jeito que conseguirem',
  'Paparazzi: foto de um líder em uma situação engraçada, mas com permissão',
  'Todos de mãos dadas em círculo, olhando para o teto, como em oração',
- 'Foto da equipe com a maior pirâmide humana possível, com segurança',
  'Foto do café da madrugada mais criativa que a equipe conseguir montar',
  'Uma foto onde cada integrante faz um fruto do Espírito, e a equipe adivinha qual é',
  'Foto com um objeto da igreja usado de um jeito totalmente diferente',
@@ -654,22 +649,27 @@ const CHALLENGES=[
  'Foto de todos com o dedo apontando para o céu ao mesmo tempo',
  'Foto com um cartaz escrito à mão com a palavra mais difícil que acharem na Bíblia',
  'Recriem a parábola do semeador: um semeando, outros como terra boa, espinhos e pedras',
- 'Foto de equipe com um líder carregado nos braços, em triunfo',
  'Foto de todos fazendo cara de espanto ao mesmo tempo, como diante de um milagre',
- 'Foto de equipe em câmera de segurança: vista de cima, em preto e branco, cada um fazendo algo suspeito',
+ 'Foto de equipe de câmera de segurança: em preto e branco, cada um fazendo algo suspeito',
  'Foto com a equipe sorrindo e o fundo totalmente bagunçado, como uma foto de aniversário',
- 'Foto de todos ajudando alguém: levantar uma cadeira, carregar uma caixa, arrumar a sala',
+ 'Foto de todos ajudando: arrumar a sala, recolher o lixo, organizar as cadeiras',
  'Recriem o dilúvio: alguns de pé como animais, outros como a chuva, um como Noé',
- 'Foto de todos cochilando em posições impossíveis, mas bem fotografados',
+ 'Foto de todos cochilando de mentirinha, cada um numa pose diferente',
  'Foto com o grito de vitória da equipe, em câmera lenta',
  'Foto de equipe tentando fazer a letra inicial de cada nome juntos, formando uma palavra',
- 'Cena de novela: cada um com uma emoção dramática diferente, e a câmera gira em volta'
+ 'Cena de novela: cada um com uma emoção dramática diferente, e a câmera gira em volta',
+ 'Foto de todos de costas, olhando para o mesmo lado, como capa de clipe',
+ 'Foto de todos fazendo o mesmo gesto de louvor ao mesmo tempo',
+ 'Foto da equipe na fila do banco, com cara de quem espera há horas',
+ 'Recriem Davi e Golias com um gigante desenhado ou feito de papel',
+ 'Foto de todos com cara de susto, como se tivessem visto um anjo'
 ].join('\n');
+const OLD_CH=['Torre humana de Babel, sem cair', 'Torre humana de três andares, sem ninguém cair', 'Recriem o Davi e o Golias, com um gigante feito de gente em pé nos ombros', 'Foto da equipe com a maior pirâmide humana possível, com segurança', 'Foto de equipe com um líder carregado nos braços, em triunfo', 'A equipe fingindo dormir em lugares impossíveis', 'Foto de todos ao contrário: de cabeça para baixo, ou com a foto virada', 'Foto de todos ajudando alguém: levantar uma cadeira, carregar uma caixa, arrumar a sala', 'Foto de equipe formando um coração com os corpos, visto de cima', 'Foto de equipe em câmera de segurança: vista de cima, em preto e branco, cada um fazendo algo suspeito', 'Foto de todos cochilando em posições impossíveis, mas bem fotografados'];
 
 /* ---------- estado ---------- */
 const DEF={
   teams:['Leões','Águias','Ursos','Lobos'].map((n,i)=>({id:'t'+(i+1),name:n,score:0,c:i})),
-  nid:5,turn:0,tab:'imagem',dur:120,ver:3,mute:false,
+  nid:5,turn:0,tab:'imagem',dur:120,ver:4,mute:false,
   phDur:300,challenges:CHALLENGES,usedCh:[],gone:[],stopList:STOP_THEMES,stopDur:90,link:'',room:''
 };
 function load(){
@@ -685,11 +685,11 @@ function load(){
       if(typeof d.stopList!=='string'||!d.stopList.trim())d.stopList=STOP_THEMES;
       if(![60,90,120].includes(d.stopDur))d.stopDur=90;
       if(!(o.ver>=2))d.dur=120;
-      if(o.ver!==3){
-        const have=String(d.challenges||'').split('\n').map(x=>x.trim());
+      if(o.ver!==4){
+        const have=String(d.challenges||'').split('\n').map(x=>x.trim()).filter(x=>x&&!OLD_CH.includes(x));
         const add=CHALLENGES.split('\n').filter(x=>!have.includes(x));
-        d.challenges=(String(d.challenges||'').trim()+'\n'+add.join('\n')).trim();
-        d.usedCh=[];d.ver=3;
+        d.challenges=(have.join('\n')+'\n'+add.join('\n')).trim();
+        d.usedCh=[];d.ver=4;
       }
       if(!(d.turn>=0&&d.turn<d.teams.length)) d.turn=0;
     }
