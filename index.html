@@ -688,7 +688,48 @@ function ritChart(song,slow){
   ev.forEach(e=>{if(e.t-last>=gap){notes.push({t:e.t,l:Math.min(3,Math.floor(ps.indexOf(e.m)*4/ps.length)),m:e.m,done:false});last=e.t}});
   return {notes,end:t*spb*1000,bpm,beats:t,spb};
 }
-window.__rit={ritChart,SONGS};
+/* som de guitarra elétrica: corda tocada (Karplus-Strong) com distorção, gerada uma vez por nota */
+const gcache={};
+function guitarBuf(m){
+  if(gcache[m])return gcache[m];
+  const sr=AC.sampleRate,f=midiHz(m),N=Math.max(2,Math.round(sr/f)),len=Math.floor(sr*1.2);
+  const buf=AC.createBuffer(1,len,sr),d=buf.getChannelData(0),line=new Float32Array(N);
+  let prev=0;
+  for(let i=0;i<N;i++){const x=Math.random()*2-1;prev=prev*.5+x*.5;line[i]=prev}
+  let p=0,peak=0;
+  for(let i=0;i<len;i++){
+    const a=line[p],b=line[(p+1)%N],v=(a+b)*.5*.9985;
+    line[p]=v;p=(p+1)%N;
+    const y=Math.tanh(v*3.2);d[i]=y;if(Math.abs(y)>peak)peak=Math.abs(y);
+  }
+  const k=peak>0?.95/peak:1;
+  for(let i=0;i<len;i++)d[i]*=k*Math.min(1,i/60);
+  gcache[m]=buf;return buf;
+}
+function playGuitar(m,vol){
+  if(!AC)return;
+  try{
+    if(AC.state!=='running')AC.resume();
+    const s=AC.createBufferSource(),g=AC.createGain();
+    s.buffer=guitarBuf(m);g.gain.value=vol||1;
+    s.connect(g);g.connect(AC.destination);s.start();
+  }catch(e){}
+}
+/* áudio mudo em loop: no iPhone isso faz o som sair mesmo com o botão de silencioso ligado */
+let silentEl=null;
+function keepAudioAlive(){
+  try{
+    if(silentEl)return;
+    const sr=8000,n=sr/2,b=new ArrayBuffer(44+n*2),v=new DataView(b);
+    const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+    w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+    silentEl=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));
+    silentEl.loop=true;silentEl.volume=.01;
+    const pr=silentEl.play();if(pr&&pr.catch)pr.catch(()=>{});
+  }catch(e){}
+}
+window.__rit={ritChart,SONGS,guitarBuf,playGuitar};
 const CHALLENGES=[
  'Recriem uma cena bíblica em até 5 minutos, sem rir',
  'Davi contra Golias: a equipe toda numa pose dramática',
@@ -1734,23 +1775,16 @@ function initRitPhone(room,myTeam){
     else setSync(sEl,'bad','Sem conexão. Confira a internet do celular.');
   });
   $('#r-ready').addEventListener('click',()=>{
-    unlockAudio();ready=true;$('#r-ready').hidden=true;
-    st.textContent='Pronto! Segure o celular de lado ou em pé e espere o telão iniciar a música.';
-    tone(60,.15,.05);
+    unlockAudio();keepAudioAlive();ready=true;$('#r-ready').hidden=true;
+    st.textContent='Pronto! Você deve ter ouvido um acorde de guitarra. Se não ouviu, aumente o volume do celular e desligue o modo silencioso. Espere o telão iniciar a música.';
+    [52,59,64,67].forEach((m,i)=>setTimeout(()=>playGuitar(m,1),i*90));
   });
-  function tone(m,d,v){
-    if(!AC)return;
-    try{
-      const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
-      o.type='triangle';o.frequency.value=midiHz(m);o.connect(g);g.connect(AC.destination);
-      g.gain.setValueAtTime(v||.25,t);g.gain.exponentialRampToValueAtTime(.001,t+(d||.35));o.start(t);o.stop(t+(d||.35)+.03);
-    }catch(e){}
-  }
+  function tone(m,d,v){playGuitar(m,v)}
   function mult(){return Math.min(4,1+Math.floor(G.combo/8))}
   function begin(m){
     const song=SONGS[m.song|0];
     if(!song||typeof m.rid!=='number'||m.rid===rid)return;
-    rid=m.rid;
+    rid=m.rid;unlockAudio();
     const ch=ritChart(song,!!m.slow);
     G={ch,t0:performance.now()+3000,score:0,combo:0,maxc:0,p:0,g:0,miss:0,fb:'',fbT:-1e9,fbC:'#fff',sent:false,name:song.name};
     $('#r-res').hidden=true;box.classList.add('playing');
@@ -1760,6 +1794,7 @@ function initRitPhone(room,myTeam){
   function fb(txt,c){G.fb=txt;G.fbC=c;G.fbT=performance.now()}
   function judge(l){
     if(!G||G.sent)return;
+    unlockAudio();
     const now=performance.now()-G.t0;let best=null,bd=1e9;
     for(const n of G.ch.notes){if(n.done||n.l!==l)continue;const d=Math.abs(now-n.t);if(d<bd){bd=d;best=n}if(n.t-now>GOOD)break}
     if(best&&bd<=GOOD){
@@ -1768,7 +1803,7 @@ function initRitPhone(room,myTeam){
       G.combo++;G.maxc=Math.max(G.maxc,G.combo);
       G.score+=(perfect?100:50)*mult();
       if(perfect){G.p++;fb('Perfeito!','#3fb8a6')}else{G.g++;fb('Bom','#f2b441')}
-      tone(best.m,.4,.28);
+      tone(best.m,.4,1);
     }else{G.combo=0;fb('Ops','#ef6a4d')}
   }
   function miss(){
