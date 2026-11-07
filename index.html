@@ -327,9 +327,9 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
               <button data-v="1" aria-pressed="true">Fácil</button>
               <button data-v="0" aria-pressed="false">Normal</button>
             </div>
-            <div class="seg" id="rt-gtr" role="group" aria-label="Guitarra no telão">
-              <button data-g="1" aria-pressed="true">Guitarra no telão: ligada</button>
-              <button data-g="0" aria-pressed="false">Desligada</button>
+            <div class="seg" id="rt-gtr" role="group" aria-label="Violão no telão">
+              <button data-g="1" aria-pressed="true">Violão no telão: ligado</button>
+              <button data-g="0" aria-pressed="false">Desligado</button>
             </div>
             <div class="seg" id="rt-adj" role="group" aria-label="Ajuste de atraso do som">
               <button data-d="-1" aria-label="Música mais cedo">−</button>
@@ -354,7 +354,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
             <div class="qrgrid" id="rt-qrs"></div>
             <p class="note" id="rt-qrmsg"></p>
           </details>
-          <p class="note">Cada equipe escaneia o QR, toca em "Toque para entrar" (liga o som) e espera. A melodia só toca quando o jogador acerta a bolinha. O telão toca a base (bateria e baixo) e a melodia em guitarra inteira, para a sala toda ouvir. No celular, a guitarra toca quando o jogador acerta. Se o som do telão parecer adiantado ou atrasado em relação ao celular, ajuste o Atraso.</p>
+          <p class="note">Cada equipe escaneia o QR, toca em "Toque para entrar" (liga o som) e espera. A melodia só toca quando o jogador acerta a bolinha. O telão toca a base (bateria e baixo) e a melodia em violão inteira, para a sala toda ouvir. No celular, o violão toca quando o jogador acerta. Se o som do telão parecer adiantado ou atrasado em relação ao celular, ajuste o Atraso.</p>
         </div>
       </section>
 
@@ -698,23 +698,28 @@ function ritChart(song,slow){
   ev.forEach(e=>{if(e.t-last>=gap){notes.push({t:e.t,l:Math.min(3,Math.floor(ps.indexOf(e.m)*4/ps.length)),m:e.m,done:false});last=e.t}});
   return {notes,end:t*spb*1000,bpm,beats:t,spb,ev};
 }
-/* som de guitarra elétrica: corda tocada (Karplus-Strong) com distorção, gerada uma vez por nota */
+/* som de violão de nylon: corda tocada (Karplus-Strong) mais grave e quente, uma oitava abaixo da nota escrita */
 const gcache={};
 function guitarBuf(m){
-  if(gcache[m])return gcache[m];
-  const sr=AC.sampleRate,f=midiHz(m),N=Math.max(2,Math.round(sr/f)),len=Math.floor(sr*1.2);
+  let sm=m-12;while(sm<40)sm+=12;
+  if(gcache[sm])return gcache[sm];
+  const sr=AC.sampleRate,f=midiHz(sm),N=Math.max(4,Math.round(sr/f)),len=Math.floor(sr*1.5);
   const buf=AC.createBuffer(1,len,sr),d=buf.getChannelData(0),line=new Float32Array(N);
   let prev=0;
-  for(let i=0;i<N;i++){const x=Math.random()*2-1;prev=prev*.5+x*.5;line[i]=prev}
-  let p=0,peak=0;
+  for(let i=0;i<N;i++){const x=Math.random()*2-1;prev=prev*.72+x*.28;line[i]=prev}
+  const off=Math.max(1,Math.round(N/5)),c0=line.slice();
+  for(let i=0;i<N;i++)line[i]=c0[i]-.6*c0[(i+off)%N];
+  let p=0,peak=0,lp=0;
   for(let i=0;i<len;i++){
-    const a=line[p],b=line[(p+1)%N],v=(a+b)*.5*.9985;
+    const a=line[p],b=line[(p+1)%N],v=(a*.55+b*.45)*.9962;
     line[p]=v;p=(p+1)%N;
-    const y=Math.tanh(v*3.2);d[i]=y;if(Math.abs(y)>peak)peak=Math.abs(y);
+    lp=lp*.5+v*.5;
+    const body=Math.sin(2*Math.PI*f*i/sr)*.3*Math.exp(-i/(sr*.55));
+    const y=Math.tanh((lp+body)*1.4);d[i]=y;if(Math.abs(y)>peak)peak=Math.abs(y);
   }
-  const k=peak>0?.95/peak:1;
-  for(let i=0;i<len;i++)d[i]*=k*Math.min(1,i/60);
-  gcache[m]=buf;return buf;
+  const k=peak>0?.9/peak:1;
+  for(let i=0;i<len;i++)d[i]*=k*Math.min(1,i/50);
+  gcache[sm]=buf;return buf;
 }
 function playGuitar(m,vol){
   if(!AC)return;
@@ -1445,6 +1450,14 @@ function ritBacking(song,ch,lead){
     for(let i=0;i<nbeats*2;i++){
       const beat=i/2,half=i%2===1,t=t0+beat*spb;
       const pos=beat%bar,c=prog[Math.floor(beat/bar)%prog.length],bass=36+c.r,whole=!half&&pos===0;
+      if(whole&&st!=='lull'&&st!=='ballad')triad(c).forEach(m=>tone('sine',m,t,bar*spb,.05,.3));
+      if(whole&&S.ritGtr!==false){
+        triad(c).forEach((m,k)=>{
+          let x=m-12;while(x<40)x+=12;
+          const s=reg(AC.createBufferSource()),g=AC.createGain();
+          s.buffer=guitarBuf(x+12);g.gain.value=.4;s.connect(g);g.connect(bus);s.start(t+k*.035);
+        });
+      }
       if(st==='rock'){
         if(!half&&(pos===0||pos===2))kick(t,.36);
         if(!half&&(pos===1||pos===3))noise(t,.13,'bandpass',1800,.26);
@@ -1838,7 +1851,7 @@ function initRitPhone(room,myTeam){
   });
   $('#r-ready').addEventListener('click',()=>{
     unlockAudio();keepAudioAlive();ready=true;$('#r-ready').hidden=true;
-    st.textContent='Pronto! Você deve ter ouvido um acorde de guitarra. Se não ouviu, aumente o volume do celular e desligue o modo silencioso. Espere o telão iniciar a música.';
+    st.textContent='Pronto! Você deve ter ouvido um acorde de violão. Se não ouviu, aumente o volume do celular e desligue o modo silencioso. Espere o telão iniciar a música.';
     [52,59,64,67].forEach((m,i)=>setTimeout(()=>playGuitar(m,1),i*90));
   });
   function tone(m,d,v){playGuitar(m,v)}
