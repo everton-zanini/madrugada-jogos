@@ -136,6 +136,7 @@ body:not([data-tab="imagem"]) .team [data-act="turn"]{display:none}
 .sfield input{font-size:1.2rem;padding:.7em;width:100%}
 .mini.apply{width:100%;font-weight:800;padding:.6em;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:var(--accent-ink);cursor:pointer}
 .mini.apply:disabled{background:var(--surface-2);color:var(--muted);cursor:default}
+.seg#rt-songs{flex-wrap:wrap}
 .rtbig{font:900 clamp(5rem,16vw,11rem)/1 var(--f-display);text-align:center;color:var(--accent)}
 .rtsong{font:800 clamp(1.6rem,4vw,2.6rem)/1.1 var(--f-display);text-align:center;text-transform:uppercase}
 .ritph.playing{position:fixed;inset:0;z-index:60;background:var(--cine-bg);padding:0;display:block;max-width:none}
@@ -679,14 +680,19 @@ const SONGS=[
  {id:'ode',name:'Ode à Alegria',bpm:104,style:'rock',bar:4,prog:'C C C G C C C G G C G C C C C G',notes:'E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:.5 D4:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:.5 C4:2 D4:1 D4:1 E4:1 C4:1 D4:1 E4:.5 F4:.5 E4:1 C4:1 D4:1 E4:.5 F4:.5 E4:1 D4:1 C4:1 D4:1 G3:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:.5 C4:2'},
  {id:'star',name:'Brilha, Brilha, Estrelinha',bpm:100,style:'lull',bar:4,prog:'C Am F G C F G C',notes:'C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2 G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2'},
  {id:'bday',name:'Parabéns pra Você',bpm:104,style:'waltz',bar:3,prog:'C G G C C C F C',notes:'G4:.75 G4:.25 A4:1 G4:1 C5:1 B4:2 G4:.75 G4:.25 A4:1 G4:1 D5:1 C5:2 G4:.75 G4:.25 G5:1 E5:1 C5:1 B4:1 A4:1 F5:.75 F5:.25 E5:1 C5:1 D5:1 C5:2'},
- {id:'noite',name:'Noite Feliz',bpm:92,style:'ballad',bar:6,prog:'C C G C F C F C C G C C',notes:'G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 F5:1.5 D5:.5 B4:1 C5:3 E5:3 C5:1 G4:1 E4:1 G4:1.5 F4:.5 D4:1 C4:3'}
+ {id:'noite',name:'Noite Feliz',bpm:92,style:'ballad',bar:6,prog:'C C G C F C F C C G C C',notes:'G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 F5:1.5 D5:.5 B4:1 C5:3 E5:3 C5:1 G4:1 E4:1 G4:1.5 F4:.5 D4:1 C4:3'},
+ {id:'elisa',name:'Para Elisa (Beethoven)',bpm:112,x:2,rep:2,style:'lull',bar:4,prog:'Am E Am Am Dm Am E Am',notes:'E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 G#4:.5 B4:.5 C5:1.5 E4:.5 E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 C5:.5 B4:.5 A4:2'},
+ {id:'turca',name:'Marcha Turca (Mozart)',bpm:120,x:2,rep:2,style:'rock',bar:4,prog:'Am Am E Am Am Dm E Am',notes:'B4:.5 A4:.5 G#4:.5 A4:.5 C5:2 D5:.5 C5:.5 B4:.5 C5:.5 E5:2 F5:.5 E5:.5 D#5:.5 E5:.5 B5:.5 A5:.5 G#5:.5 A5:.5 B5:.5 A5:.5 G#5:.5 A5:.5 C6:2 A5:1 C6:1 B5:.5 A5:.5 G#5:.5 B5:.5 A5:2'},
+ {id:'rei',name:'Rei da Montanha (Grieg)',bpm:112,x:2,rep:3,style:'dance',bar:4,prog:'Bm Bm Bm Bm F#m Bm Bm Bm',notes:'B3:.5 C#4:.5 D4:.5 E4:.5 F#4:.5 D4:.5 F#4:1 F4:.5 C#4:.5 F4:1 E4:.5 C4:.5 E4:1 B3:.5 C#4:.5 D4:.5 E4:.5 F#4:.5 D4:.5 F#4:.5 B4:.5 A4:.5 F#4:.5 D4:.5 F#4:.5 A4:2'},
+ {id:'quinta',name:'Quinta Sinfonia (Beethoven)',bpm:104,x:1.6,rep:2,style:'dance',bar:4,prog:'Cm Cm Cm G Cm Cm Fm G',notes:'G4:.5 G4:.5 G4:.5 Eb4:2.5 F4:.5 F4:.5 F4:.5 D4:2.5 G4:.5 G4:.5 G4:.5 Eb4:2.5 G4:.5 G4:.5 G4:.5 Bb4:2.5 C5:.5 C5:.5 C5:.5 Ab4:2.5 Bb4:.5 Bb4:.5 Bb4:.5 G4:2.5'}
 ];
 const NOTE_BASE={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-const noteMidi=s=>12*(+s.slice(-1)+1)+NOTE_BASE[s[0]];
+const noteMidi=s=>12*(+s.slice(-1)+1)+NOTE_BASE[s[0]]+(s[1]==='#'?1:s[1]==='b'?-1:0);
 const midiHz=m=>440*Math.pow(2,(m-69)/12);
 function ritChart(song,slow){
   const bpm=song.bpm*(slow?0.8:1),spb=60/bpm,ev=[];let t=0;
-  song.notes.split(/\s+/).forEach(tok=>{const p=tok.split(':');ev.push({t:t*spb*1000,m:noteMidi(p[0])});t+=+p[1]});
+  const X=song.x||1,toks=song.notes.split(/\s+/);
+  for(let r=0;r<(song.rep||1);r++)toks.forEach(tok=>{const p=tok.split(':');ev.push({t:t*spb*1000,m:noteMidi(p[0])});t+=(+p[1])*X});
   const ps=Array.from(new Set(ev.map(e=>e.m))).sort((a,b)=>a-b);
   const gap=slow?520:400,notes=[];let last=-1e9;
   ev.forEach(e=>{if(e.t-last>=gap){notes.push({t:e.t,l:Math.min(3,Math.floor(ps.indexOf(e.m)*4/ps.length)),m:e.m,done:false});last=e.t}});
@@ -1426,8 +1432,8 @@ function ritBacking(song,ch,lead){
       g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+.17);
       k.connect(g);g.connect(bus);k.start(t);k.stop(t+.2);
     };
-    const ROOT={C:0,D:2,E:4,F:5,G:7,A:9};
-    const prog=song.prog.split(' ').map(c=>({r:ROOT[c[0]],minor:c.length>1}));
+    const ROOT={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+    const prog=song.prog.split(' ').map(c=>({r:ROOT[c[0]]+(c[1]==='#'?1:0),minor:/m$/.test(c)}));
     const triad=c=>[0,c.minor?3:4,7].map(x=>48+c.r+x);
     const bar=song.bar,st=song.style;
     if(S.ritGtr!==false){
@@ -1451,6 +1457,12 @@ function ritBacking(song,ch,lead){
       }else if(st==='waltz'){
         if(whole){kick(t,.3);tone('triangle',bass,t,spb*1.4,.24,.02)}
         if(!half&&(pos===1||pos===2)){noise(t,.09,'bandpass',2500,.13);triad(c).forEach(m=>tone('triangle',m,t,spb*.4,.05,.01))}
+      }else if(st==='dance'){
+        if(!half)kick(t,.4);
+        if(!half&&(pos===1||pos===3))noise(t,.1,'bandpass',1500,.22);
+        if(half)noise(t,.09,'highpass',8000,.1);
+        if(half)tone('sawtooth',bass,t,spb*.4,.13,.01);
+        if(whole)triad(c).forEach(m=>tone('square',m,t,spb*.6,.04,.01));
       }else{
         if(!half&&(pos===0||pos===3)){kick(t,.22);tone('triangle',bass,t,spb*2.8,.22,.03)}
         if(whole)triad(c).forEach(m=>tone('sine',m,t,bar*spb,.06,.35));
