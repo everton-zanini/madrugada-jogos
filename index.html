@@ -326,6 +326,10 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
               <button data-v="1" aria-pressed="true">Fácil</button>
               <button data-v="0" aria-pressed="false">Normal</button>
             </div>
+            <div class="seg" id="rt-gtr" role="group" aria-label="Guitarra no telão">
+              <button data-g="1" aria-pressed="true">Guitarra no telão: ligada</button>
+              <button data-g="0" aria-pressed="false">Desligada</button>
+            </div>
             <div class="seg" id="rt-adj" role="group" aria-label="Ajuste de atraso do som">
               <button data-d="-1" aria-label="Música mais cedo">−</button>
               <button disabled id="rt-adjv">Atraso 0,0 s</button>
@@ -349,7 +353,7 @@ details summary{cursor:pointer;font-weight:700;color:var(--accent-text)}
             <div class="qrgrid" id="rt-qrs"></div>
             <p class="note" id="rt-qrmsg"></p>
           </details>
-          <p class="note">Cada equipe escaneia o QR, toca em "Toque para entrar" (liga o som) e espera. A melodia só toca quando o jogador acerta a bolinha. O telão toca a base (bumbo e baixo). Se o som do telão parecer adiantado ou atrasado em relação ao celular, ajuste o Atraso.</p>
+          <p class="note">Cada equipe escaneia o QR, toca em "Toque para entrar" (liga o som) e espera. A melodia só toca quando o jogador acerta a bolinha. O telão toca a base (bateria e baixo) e a melodia em guitarra inteira, para a sala toda ouvir. No celular, a guitarra toca quando o jogador acerta. Se o som do telão parecer adiantado ou atrasado em relação ao celular, ajuste o Atraso.</p>
         </div>
       </section>
 
@@ -686,7 +690,7 @@ function ritChart(song,slow){
   const ps=Array.from(new Set(ev.map(e=>e.m))).sort((a,b)=>a-b);
   const gap=slow?520:400,notes=[];let last=-1e9;
   ev.forEach(e=>{if(e.t-last>=gap){notes.push({t:e.t,l:Math.min(3,Math.floor(ps.indexOf(e.m)*4/ps.length)),m:e.m,done:false});last=e.t}});
-  return {notes,end:t*spb*1000,bpm,beats:t,spb};
+  return {notes,end:t*spb*1000,bpm,beats:t,spb,ev};
 }
 /* som de guitarra elétrica: corda tocada (Karplus-Strong) com distorção, gerada uma vez por nota */
 const gcache={};
@@ -1426,6 +1430,12 @@ function ritBacking(song,ch,lead){
     const prog=song.prog.split(' ').map(c=>({r:ROOT[c[0]],minor:c.length>1}));
     const triad=c=>[0,c.minor?3:4,7].map(x=>48+c.r+x);
     const bar=song.bar,st=song.style;
+    if(S.ritGtr!==false){
+      ch.ev.forEach(e=>{
+        const s=reg(AC.createBufferSource()),g=AC.createGain();
+        s.buffer=guitarBuf(e.m);g.gain.value=.9;s.connect(g);g.connect(bus);s.start(t0+e.t/1000);
+      });
+    }
     for(let i=0;i<nbeats*2;i++){
       const beat=i/2,half=i%2===1,t=t0+beat*spb;
       const pos=beat%bar,c=prog[Math.floor(beat/bar)%prog.length],bass=36+c.r,whole=!half&&pos===0;
@@ -1456,6 +1466,7 @@ function renderRit(){
   }
   $$('#rt-songs button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.i===RT.song)));
   $$('#rt-level button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='1')===RT.slow)));
+  $$('#rt-gtr button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.g==='1')===(S.ritGtr!==false))));
   const adj=S.ritAdj||0;
   $('#rt-adjv').textContent='Atraso '+(adj>=0?'':'−')+Math.abs(adj).toFixed(1).replace('.',',')+' s';
   const p=RT.phase;
@@ -1511,6 +1522,7 @@ $('#rt-go').addEventListener('click',ritStart);
 $('#rt-stop').addEventListener('click',ritStop);
 $('#rt-songs').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b)return;if(RT.phase==='play')ritStop();RT.song=+b.dataset.i;renderRit()});
 $('#rt-level').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;if(RT.phase==='play')ritStop();RT.slow=b.dataset.v==='1';renderRit()});
+$('#rt-gtr').addEventListener('click',e=>{const b=e.target.closest('button[data-g]');if(!b)return;S.ritGtr=b.dataset.g==='1';save();renderRit()});
 $('#rt-adj').addEventListener('click',e=>{
   const b=e.target.closest('button[data-d]');if(!b)return;
   S.ritAdj=Math.max(-1.5,Math.min(2,Math.round(((S.ritAdj||0)+(+b.dataset.d)*0.1)*10)/10));save();renderRit();
