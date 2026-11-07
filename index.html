@@ -1391,27 +1391,32 @@ function sendTurn(force){
   lastTurnSent=key;HS.send(st);
 }
 /* ---------- RITMO (telão) ---------- */
-const RT={rid:0,phase:'idle',song:0,slow:true,res:{},t0:0,end:0,iv:0,applied:false};
+const RT={rid:0,phase:'idle',song:0,slow:true,res:{},t0:0,end:0,iv:0,applied:false,bus:null,nodes:[]};
+function ritKillAudio(){
+  RT.nodes.forEach(n=>{try{n.stop()}catch(e){}try{n.disconnect()}catch(e){}});RT.nodes=[];
+  if(RT.bus){try{RT.bus.gain.cancelScheduledValues(0);RT.bus.gain.value=0;RT.bus.disconnect()}catch(e){}RT.bus=null}
+}
 function ritBacking(ch,lead){
   if(S.mute||!AC)return;
   try{
     const t0=AC.currentTime+lead/1000,spb=ch.spb,total=Math.ceil(ch.beats)+2;
+    const bus=AC.createGain();bus.gain.value=1;bus.connect(AC.destination);RT.bus=bus;const reg=n=>{RT.nodes.push(n);return n};
     for(let b=0;b<total;b++){
       const t=t0+b*spb;
-      const k=AC.createOscillator(),kg=AC.createGain();
+      const k=reg(AC.createOscillator()),kg=AC.createGain();
       k.type='sine';k.frequency.setValueAtTime(130,t);k.frequency.exponentialRampToValueAtTime(40,t+.12);
       kg.gain.setValueAtTime(.35,t);kg.gain.exponentialRampToValueAtTime(.001,t+.16);
-      k.connect(kg);kg.connect(AC.destination);k.start(t);k.stop(t+.2);
+      k.connect(kg);kg.connect(bus);k.start(t);k.stop(t+.2);
       const hz=(b%4<2)?65.41:98.0;
       if(b%2===0){
-        const o=AC.createOscillator(),g=AC.createGain();
+        const o=reg(AC.createOscillator()),g=AC.createGain();
         o.type='triangle';o.frequency.value=hz;
         g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.22,t+.03);g.gain.exponentialRampToValueAtTime(.001,t+spb*1.8);
-        o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+spb*1.9);
+        o.connect(g);g.connect(bus);o.start(t);o.stop(t+spb*1.9);
       }
-      const th=t+spb/2,n=AC.createBufferSource(),len=Math.floor(AC.sampleRate*.04),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+      const th=t+spb/2,n=reg(AC.createBufferSource()),len=Math.floor(AC.sampleRate*.04),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
       for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
-      n.buffer=buf;const ng=AC.createGain();ng.gain.value=.12;n.connect(ng);ng.connect(AC.destination);n.start(th);
+      n.buffer=buf;const ng=AC.createGain();ng.gain.value=.12;n.connect(ng);ng.connect(bus);n.start(th);
     }
   }catch(e){}
 }
@@ -1453,11 +1458,11 @@ function ritTick(){
     const el=-left,f=Math.min(1,el/RT.end);
     big.textContent='♪';bar.style.width=(f*100)+'%';
     $('#rt-info').textContent=el<RT.end+2000?'Tocando! Cada equipe joga no celular.':'Música terminou. Esperando os resultados.';
-    if(el>RT.end+9000){RT.phase='done';clearInterval(RT.iv);RT.iv=0;renderRit()}
+    if(el>RT.end+9000){RT.phase='done';clearInterval(RT.iv);RT.iv=0;ritKillAudio();renderRit()}
   }
 }
 function ritStart(){
-  unlockAudio();
+  unlockAudio();ritKillAudio();clearInterval(RT.iv);
   const ch=ritChart(SONGS[RT.song],RT.slow),lead=3300+(S.ritAdj||0)*1000;
   RT.rid++;RT.res={};RT.applied=false;RT.phase='play';RT.end=ch.end;RT.t0=performance.now()+3300;
   if(HS)HS.send({k:'rit',rid:RT.rid,song:RT.song,slow:RT.slow?1:0});
@@ -1465,14 +1470,18 @@ function ritStart(){
   clearInterval(RT.iv);RT.iv=setInterval(ritTick,100);ritTick();renderRit();
 }
 function ritStop(){
-  clearInterval(RT.iv);RT.iv=0;RT.phase='done';$('#rt-big').textContent='♪';$('#rt-bar').style.width='0%';
-  $('#rt-info').textContent='Música parada. O som da base pode continuar por alguns segundos.';
+  clearInterval(RT.iv);RT.iv=0;ritKillAudio();
+  const was=RT.phase==='play';
+  RT.phase='done';RT.rid++;
+  if(was&&HS)HS.send({k:'rit',rid:RT.rid,phase:'stop'});
+  $('#rt-big').textContent='♪';$('#rt-bar').style.width='0%';
+  $('#rt-info').textContent='Música parada.';
   renderRit();
 }
 $('#rt-go').addEventListener('click',ritStart);
 $('#rt-stop').addEventListener('click',ritStop);
-$('#rt-songs').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(b&&RT.phase!=='play'){RT.song=+b.dataset.i;renderRit()}});
-$('#rt-level').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(b&&RT.phase!=='play'){RT.slow=b.dataset.v==='1';renderRit()}});
+$('#rt-songs').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b)return;if(RT.phase==='play')ritStop();RT.song=+b.dataset.i;renderRit()});
+$('#rt-level').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;if(RT.phase==='play')ritStop();RT.slow=b.dataset.v==='1';renderRit()});
 $('#rt-adj').addEventListener('click',e=>{
   const b=e.target.closest('button[data-d]');if(!b)return;
   S.ritAdj=Math.max(-1.5,Math.min(2,Math.round(((S.ritAdj||0)+(+b.dataset.d)*0.1)*10)/10));save();renderRit();
@@ -1782,8 +1791,13 @@ function initRitPhone(room,myTeam){
   function tone(m,d,v){playGuitar(m,v)}
   function mult(){return Math.min(4,1+Math.floor(G.combo/8))}
   function begin(m){
+    if(typeof m.rid!=='number'||m.rid===rid)return;
+    if(m.phase==='stop'){
+      rid=m.rid;cancelAnimationFrame(raf);G=null;box.classList.remove('playing');
+      st.textContent='A música foi parada pelo telão. Espere a próxima.';st.hidden=false;return;
+    }
     const song=SONGS[m.song|0];
-    if(!song||typeof m.rid!=='number'||m.rid===rid)return;
+    if(!song)return;
     rid=m.rid;unlockAudio();
     const ch=ritChart(song,!!m.slow);
     G={ch,t0:performance.now()+3000,score:0,combo:0,maxc:0,p:0,g:0,miss:0,fb:'',fbT:-1e9,fbC:'#fff',sent:false,name:song.name};
